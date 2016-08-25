@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -27,13 +26,12 @@ int binom(int n, int k)
 }
 
 
-
-
 /******************************************************************************
  * PERMUTATIONS 
  ******************************************************************************/
 
 typedef uint64_t perm_t;
+
 #define MAXPERMSIZE 16
 #define LETTERSIZE 4
 #define numbits 64
@@ -50,7 +48,6 @@ typedef uint64_t perm_t;
         ({ __typeof__ (a) _a = (a); \
         __typeof__ (b) _b = (b); \
         _a < _b ? _a : _b; })
-
 
 
 uint64_t perm_get_entry(perm_t perm, int index) 
@@ -71,6 +68,12 @@ perm_t perm_insert_blank(perm_t perm, int index)
         perm_t top    = perm & ((~ (perm_t)0) - (((perm_t)1 << (LETTERSIZE * index)) - 1));
         
         return bottom + (top << LETTERSIZE);
+}
+
+
+perm_t perm_insert_entry(perm_t perm, int index, uint64_t value) 
+{
+        return perm_set_entry(perm_insert_blank(perm, index), index, value);
 }
 
 perm_t perm_remove_entry(perm_t perm, int index) 
@@ -126,15 +129,16 @@ void print_bits(perm_t p)
 }
 
 
-/*void displayperm(perm_t perm) */
-/*{*/
-        /*int i;*/
+void displayperm(perm_t perm) 
+{
+        int i;
 
-        /*for (i=0; i<numbits/LETTERSIZE; i++) {*/
-                /*printf("%d", getdigit(perm, i));*/
-        /*}*/
-        /*[>printf("\n");<]*/
-/*}*/
+        for (i=0; i<numbits/LETTERSIZE; i++) {
+                printf("%d", perm_get_entry(perm, i));
+        }
+        /* printf("\n"); */
+}
+
 
 /*perm_t getinverse(perm_t perm, int length) */
 /*{*/
@@ -283,7 +287,7 @@ perm_t downarrow(perm_t perm, int i)
 
         int length = perm_length(perm);
 
-        printf("len:%d i:%d\n", length, i);
+        /*printf("len:%d i:%d\n", length, i);*/
 
         /* 
          * In paper written as length-i+1, but we index from 0 in
@@ -316,7 +320,7 @@ int p(int i, perm_t perm, perm_t pattern)
         int perm_len    = perm_length(perm);
         int pattern_len = perm_length(pattern);
 
-        printf("permlen[%d] pattlen[%d]\n", perm_len, pattern_len);
+        /*printf("permlen[%d] pattlen[%d]\n", perm_len, pattern_len);*/
 
         if (perm_len == pattern_len) {
                 if (perm == pattern) {
@@ -445,7 +449,7 @@ int countem(perm_t perm, perm_t pattern)
 
         count = p(0, perm, pattern);
 
-	printf("got count:%d\n", count);
+	/*printf("got count:%d\n", count);*/
 
 	return count;
 }
@@ -456,6 +460,7 @@ float occ(int n, int k, float density)
 {
         return (float)binom(n, k) * density;
 }
+
 
 
 void densities(int n, int k)
@@ -470,12 +475,157 @@ void densities(int n, int k)
 
 
 
+int Tally[560] = {0};
+
+FILE *Log;
+
+void write_tally(FILE *f)
+{
+        int i;
+
+        /* Rewind file */
+        fseek(f, 0L, SEEK_SET);
+
+        for (i=0; i<560; i++) {
+                fprintf(f, "%d %d\n", i, Tally[i]); 
+        }
+}
+
+
+
+
+int Track = 0;
+
+
+/*  Function to swap values at two pointers */
+perm_t perm_swap(perm_t perm, int index_a, int index_b)
+{
+        int a = perm_get_entry(perm, index_a);
+        int b = perm_get_entry(perm, index_b);
+
+        perm = perm_set_entry(perm, index_a, b);
+        perm = perm_set_entry(perm, index_b, a);
+                
+        return perm;
+}
+        
+/*  Function to print permutations of string
+*     This function takes three parameters:
+*        1. String
+*           2. Starting index of the string
+*       3. Ending index of the string. */
+void permute(perm_t p, perm_t pattern, int l, int r)
+{
+        int i;
+        int c;
+                    
+        if (l == r) {
+
+                c = countem(p, pattern);
+
+                Tally[c]++;
+
+                Track++;
+                if (Track % 100) {
+                        Track=0;
+                        write_tally(Log);
+                }
+
+                printf("%d\t", c);
+                displayperm(p);
+                printf("\n");
+        } else {
+                for (i=l; i<=r; i++) {
+                        p = perm_swap(p, l, i);
+                        permute(p, pattern, l+1, r);
+                        p = perm_swap(p, l, i); //backtrack
+                }
+        }
+}
+
+
+void yup(perm_t perm, perm_t pattern) 
+{
+        int len = perm_length(perm);
+        
+        permute(perm, pattern, 0, len-1); 
+}
+
+
+void explore_output(perm_t perm, perm_t pattern) 
+{
+        int i;
+        int c;
+        perm_t p = perm;
+        int len = perm_length(p);
+
+        if (len > 15) {
+                return;
+        }
+
+        for (i=0; i<len; i++) {
+                p = perm_insert_entry(p, i, len);
+
+                explore_output(p, pattern);
+
+                c = countem(p, pattern);
+
+                Tally[c]++;
+
+                Track++;
+                if (Track % 100) {
+                        Track=0;
+                        write_tally(Log);
+                }
+
+                printf("%d\t", c);
+                displayperm(p);
+                printf("\n");
+
+                p = perm_remove_entry(p, i);
+        }
+}
+
+
+perm_t maken(int n)
+{
+        int i = 0;
+        perm_t p = 0;
+
+        for (i=0; i<n; i++) {
+                p = perm_set_entry(p, i, i);
+        }
+        return p;
+}
+
 int main(int argc, char** argv) 
 {
-        /*perm_t a = stringtoperm("463152");*/
-        /*perm_t b = stringtoperm("312");*/
+        Log = fopen("tally.log", "w+");
 
-        perm_t a = stringtoperm("63412");
+        perm_t c = stringtoperm("312");
+
+        /*perm_t ff = stringtoperm("123456789");*/
+
+        perm_t ff = maken(10);
+        /*displayperm(ff);*/
+        /*return 1;*/
+
+        yup(ff, c);
+
+        return 1;
+
+        /*perm_t c = stringtoperm("312");*/
+
+
+        printf("pattern:");
+        displayperm(c);
+        printf("\n");
+
+        explore_output(c, c);
+
+        return 0;
+
+        perm_t a = stringtoperm("463152");
         perm_t b = stringtoperm("312");
 
         countem(a, b);
