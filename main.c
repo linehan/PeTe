@@ -8,6 +8,8 @@
 #include <stdint.h>
 #include <errno.h>
 
+#define GO_FAST 1
+
 unsigned long long factorial(long long num) 
 {
         int answer = 1;
@@ -25,19 +27,6 @@ int binom(int n, int k)
         return (n==0 | k==0) ? 1 : (n*binom(n-1,k-1))/k;
 }
 
-
-/******************************************************************************
- * PERMUTATIONS 
- ******************************************************************************/
-
-typedef uint64_t perm_t;
-
-#define MAXPERMSIZE 16
-#define LETTERSIZE 4
-#define numbits 64
-
-#define LETTERFACE ((((perm_t) 1) << LETTERSIZE) - (perm_t)1)
-
 #define MAX(a,b) \
         ({ __typeof__ (a) _a = (a); \
         __typeof__ (b) _b = (b); \
@@ -50,72 +39,203 @@ typedef uint64_t perm_t;
         _a < _b ? _a : _b; })
 
 
-uint64_t perm_get_entry(perm_t perm, int index) 
+/******************************************************************************
+ * PERMUTATION TYPES
+ ******************************************************************************/
+typedef uint64_t perm_t;
+
+#define PERM_MAX_LENGTH 16
+#define PERM_BLOCK_SIZE  4
+#define PERM_SIZE       64
+
+/* 
+ * 0000 0001 0000 - 000 0000 0001 = 0000 0000 1111
+ */
+#define PERM_BLOCK_MASK \
+        ((((perm_t) 1) << PERM_BLOCK_SIZE) - (perm_t)1)
+
+#define PERM_CLEAR_BLOCK(p, i) \
+        (p & ~((perm_t)PERM_BLOCK_MASK << (i * PERM_BLOCK_SIZE))) 
+
+#define PERM_WRITE_BLOCK(p, i, v) \
+        (p | ((perm_t)v << (i * PERM_BLOCK_SIZE))) 
+
+
+/**
+ * perm_get_block() 
+ * ````````````````
+ * Retrieve the block value stored at an index.
+ *
+ * @perm : Permutation
+ * @index: Block index
+ * Return: Value stored in block @index.
+ */
+uint64_t perm_get_block(perm_t perm, int index) 
 {
-        return (uint64_t)((perm >> (index * LETTERSIZE)) & LETTERFACE); 
+        return (uint64_t)((perm >> (index*PERM_BLOCK_SIZE)) & PERM_BLOCK_MASK); 
 }
 
-// indexing starts at 0 for both position and value in permutation
-perm_t perm_set_entry(perm_t perm, int index, uint64_t value) 
+/**
+ * perm_set_block()
+ * ````````````````
+ * Clear a block and then re-write its value.
+ *
+ * @perm : Permutation
+ * @index: Index of block to rewrite
+ * @value: Value to write at block
+ * Return: Resulting permutation 
+ */
+perm_t perm_set_block(perm_t perm, int index, uint64_t value) 
 {
-        return (perm & ~((perm_t)LETTERFACE << (index * LETTERSIZE))) | ((perm_t)value << (index * LETTERSIZE)); // clear digit and then rewrite its value
+        return PERM_WRITE_BLOCK(PERM_CLEAR_BLOCK(perm, index), index, value);
+        /*(perm & ~((perm_t)LETTERFACE << (index * PERM_BLOCK_SIZE))) | ((perm_t)value << (index * PERM_BLOCK_SIZE)); // clear digit and then rewrite its value*/
 }
 
-// inserts a blank in position index
+/** 
+ * perm_insert_blank_block()
+ * `````````````````````````
+ * Insert a blank block at a position, shifting blocks to the right.
+ *
+ * @perm : Permutation
+ * @index: Block index where blank will be inserted.
+ * Return: Resulting permutation
+ *
+ * NOTE:
+ * The values in block @index and higher will be shifted 1 to the right. 
+ */
 perm_t perm_insert_blank(perm_t perm, int index) 
 {
-        perm_t bottom = perm & (((perm_t)1 << (LETTERSIZE * index)) - 1);
-        perm_t top    = perm & ((~ (perm_t)0) - (((perm_t)1 << (LETTERSIZE * index)) - 1));
+        perm_t bottom = perm & (((perm_t)1 << (PERM_BLOCK_SIZE * index)) - 1);
+        perm_t top    = perm & ((~ (perm_t)0) - (((perm_t)1 << (PERM_BLOCK_SIZE * index)) - 1));
         
-        return bottom + (top << LETTERSIZE);
+        return bottom + (top << PERM_BLOCK_SIZE);
 }
 
-
-perm_t perm_insert_entry(perm_t perm, int index, uint64_t value) 
+/**
+ * perm_insert_block()
+ * ```````````````````
+ * Insert a block and write a value to it. 
+ *
+ * @perm : Permutation
+ * @index: Block index where value will be inserted.
+ * @value: Value to write at @index
+ * Return: Resulting permutation
+ *
+ * NOTE:
+ * The values in block @index and higher will be shifted 1 to the right.
+ */
+perm_t perm_insert_block(perm_t perm, int index, uint64_t value) 
 {
-        return perm_set_entry(perm_insert_blank(perm, index), index, value);
+        return perm_set_block(perm_insert_blank(perm, index), index, value);
 }
 
+/**
+ * perm_remove_block()
+ * ```````````````````
+ * Remove a block from the permutation
+ *
+ * @perm: Permutation
+ * @index: Index of block to be removed 
+ * Return: Resulting permutation
+ *
+ * NOTE:
+ * Blocks at indices higher than @index will be shifted 1 to the left.
+ */
 perm_t perm_remove_entry(perm_t perm, int index) 
 {
-        perm_t bottom = perm & (((perm_t)1 << (LETTERSIZE * index)) - 1);
-        perm_t top = perm & ((~ (perm_t)0) - (((perm_t)1 << (LETTERSIZE * index + LETTERSIZE)) - 1));
+        perm_t bottom = perm & (((perm_t)1 << (PERM_BLOCK_SIZE * index)) - 1);
+        perm_t top = perm & ((~ (perm_t)0) - (((perm_t)1 << (PERM_BLOCK_SIZE * index + PERM_BLOCK_SIZE)) - 1));
 
-        if ((LETTERSIZE * index + LETTERSIZE) == numbits) { 
+        if ((PERM_BLOCK_SIZE * index + PERM_BLOCK_SIZE) == PERM_SIZE) { 
                 return bottom; // top is ill-defined in this case
         }
 
-        return bottom + (top >> LETTERSIZE); 
+        return bottom + (top >> PERM_BLOCK_SIZE); 
 }
 
-
+/**
+ * perm_length()
+ * `````````````
+ * Measure the length of a permutation
+ *
+ * @perm : Permutation
+ * Return: Length of permutation
+ *
+ * TODO:
+ * Eliminate loop, make this more efficient using either a header
+ * block or some clever encoding to quickly tell the length.
+ */
 int perm_length(perm_t perm) 
 {
         uint64_t len = 0;
         int i;
         
-        for (i=0; i<numbits/LETTERSIZE; i++) {
-                len = MAX(len, perm_get_entry(perm, i));
+        for (i=0; i<PERM_SIZE/PERM_BLOCK_SIZE; i++) {
+                len = MAX(len, perm_get_block(perm, i));
         }
   
         return (int)(len + 1);
 }
 
-// gives permuation corresponding with a string
-inline perm_t stringtoperm(char *str) 
+/**
+ * perm_from_string()
+ * ``````````````````
+ * Create a permutation (up to 9 digits long) from a string.
+ *
+ * @str  : String like "123456", "312", "4123", etc.
+ * Return: Permutation
+ */
+inline perm_t perm_from_string(char *str) 
 {
 	perm_t perm = 0;
 	int i;
 
   	for (i=0; i<strlen(str); i++) { 
-		perm = perm_set_entry(perm, i, (uint64_t)(str[i] - '1'));
+		perm = perm_set_block(perm, i, (uint64_t)(str[i] - '1'));
 	}
 
   	return perm;
 }
 
+/**
+ * perm_length_n()
+ * ```````````````
+ * Make a permutation with length n.
+ *
+ * @n    : Length of permutation
+ * Return: Permutation 1234...n.
+ */
+perm_t perm_of_length(int n)
+{
+        int i = 0;
+        perm_t p = 0;
 
-void print_bits(perm_t p)
+        for (i=0; i<n; i++) {
+                p = perm_set_block(p, i, i);
+        }
+        return p;
+}
+
+/**
+ * perm_print()
+ * ````````````
+ * Print a permutation to standard output.
+ *
+ * @perm : Permutation to print
+ * Return: Nothing
+ */
+void perm_print(perm_t perm) 
+{
+        int i;
+
+        for (i=0; i<PERM_SIZE/PERM_BLOCK_SIZE; i++) {
+                printf("%d", perm_get_block(perm, i));
+        }
+        /* printf("\n"); */
+}
+
+
+void perm_print_bits(perm_t p)
 {
         while (p) {
                 if (p & 1) {
@@ -126,17 +246,6 @@ void print_bits(perm_t p)
                 p >>= 1;
         }
         printf("\n");
-}
-
-
-void displayperm(perm_t perm) 
-{
-        int i;
-
-        for (i=0; i<numbits/LETTERSIZE; i++) {
-                printf("%d", perm_get_entry(perm, i));
-        }
-        /* printf("\n"); */
 }
 
 
@@ -158,15 +267,12 @@ void displayperm(perm_t perm)
 /*{*/
         /*uint64_t answer = 0;*/
         
-        /*for (int i = 0; i < numbits / LETTERSIZE; i++) {*/
+        /*for (int i = 0; i < PERM_SIZE / PERM_BLOCK_SIZE; i++) {*/
                 /*answer = MAX(answer, getdigit(perm, i));*/
         /*}*/
   
         /*return answer;*/
 /*}*/
-
-
-
 
 
 /*int prefix_matches(perm_t perm, perm_t pattern, int perm_len)*/
@@ -177,102 +283,6 @@ void displayperm(perm_t perm)
 	 * is not a prefix of pattern.
 	 */
 	/*return (__builtin_clz(pattern ^ perm) < perm_len) ? 1 : 0;*/
-/*}*/
-
-
-// Recursively checks whether perm contains a pattern from patternset.
-// Requires that all patterns in patternset are length currentpatternlength + numlettersleft
-// currentpatterncomplement stores complement of normalization of permutation subsequence already examined
-// largestletterused tells us the value of the largest letter icnluded so far in the permutation-subsequence being examined
-// seenpos is a bitmap used to efficiently update currentpatterncomplement as we make the subsequence-being looked at one longer
-// prefixmap contains the complements of each prefix of each pattern in \Pi.
-// Note that prefixmap contains complements of normalized prefixes of patterns
-// If USEADDFACTOR, computes P_1(perm) instead of P(perm). If USESECONDADDFACTOR, computes P_2(perm) instead
-/*void checkpatterns(perm_t perm, perm_t inverse, perm_t cur_compl, int cur_compl_len, int largestletterused, int numlettersleft, uint32_t seenpos, perm_t pat_compl, int *count) */
-/*{*/
-        /*printf("cur_compl_len:%d\nlargestletterused:%d\nnumlettersleft:%d\n", cur_compl_len, largestletterused, numlettersleft);*/
-        /*print_bits(pat_compl);*/
-        /*print_bits(cur_compl);*/
-
-        /*if (cur_compl != 0 && !prefix_matches(cur_compl, pat_compl, cur_compl_len)) {*/
-		/*printf("done 1 (no match)\n");*/
-                /*return;*/
-        /*}*/
-  
-	/*// Assumes all patterns are same size --> this is only case where */
-	/*// prefix is a pattern*/
-        /*if (numlettersleft == 0) { */
-		/*printf("done 2\n");*/
-                /*(*count)++;*/
-                /*return; // also assumes all patterns same size*/
-        /*}*/
-  
-	/*// Similarly to as in extendnormalizetop (defined in perm.cpp), */
-	/*// we will build the complement of the normalization of the new */
-	/*// permutation-subsequence (with the new letter added to it)*/
-	/*int oldpos = getdigit(inverse, largestletterused-1);*/
-	/*int newpos = 0;*/
-
-	/*// Note: shifting by 32 is ill-defined, which is why we explicitly eliminate digit = 0 case.*/
-	/*if (oldpos != 0) {*/
-		/*uint32_t temp = seenpos << (32 - oldpos); */
-		/*newpos = __builtin_popcount(temp);*/
-	/*}*/
-
-        /*printf("oldpos:%d\n", oldpos);*/
-        /*printf("newpos:%d\n", newpos);*/
-
-	/*perm_t new_cur_compl = setdigit(addpos(cur_compl, newpos), newpos, cur_compl_len);*/
-
-	/*// Recurse to make sequence longer until we eventually either do or don't get a pattern:*/
-	/*checkpatterns(perm, inverse, new_cur_compl, cur_compl_len+1, largestletterused-1, numlettersleft-1, seenpos | (1 << oldpos), pat_compl, count);*/
-        
-	/*printf("done 3\n");*/
-        /*return;*/
-/*}*/
-
-/*perm_t compute_downarrow2(perm_t perm, int i, int length)*/
-/*{*/
-        /*int j;*/
-        /*int pos;*/
-
-        /*[>printf("removing %d\n", length-i+1);<]*/
-
-        /*for (j=0; j<length; j++) {*/
-                /*if (getdigit(perm, j) == length-i+1) {*/
-                        /*pos = j;*/
-                        /*break;*/
-                /*}*/
-        /*}*/
-
-        /*printf("removing %d at position %d\n", length-i+1, pos);*/
-
-        /*perm = killpos(perm, pos);*/
-
-        /*for (j=0; j<length-1; j++) {*/
-                /*int digit = getdigit(perm, j);*/
-                /*if (digit > length-i+1) {*/
-                        /*printf("setting %d=>%d\n", digit, digit-1);*/
-                        /*perm = setdigit(perm, j, digit-1);*/
-                /*}*/
-        /*}*/
-
-        /*return perm;*/
-/*}*/
-
-
-/*perm_t compute_downarrow(perm_t perm, perm_t prev, int i, int length)*/
-/*{*/
-        /*perm_t inverse = getinverse(prev, length);*/
-
-        /*int pos_to_set  = getdigit(inverse, length-i+1); */
-        /*int pos_to_kill = getdigit(inverse, length-i);*/
-
-        /*perm_t almost_result = setdigit(prev, pos_to_set, length-i);*/
-
-        /*perm_t result = killpos(almost_result, pos_to_kill);*/
-
-        /*return result;*/
 /*}*/
 
 
@@ -287,8 +297,6 @@ perm_t downarrow(perm_t perm, int i)
 
         int length = perm_length(perm);
 
-        /*printf("len:%d i:%d\n", length, i);*/
-
         /* 
          * In paper written as length-i+1, but we index from 0 in
          * this implementation, so it requires another -1.  
@@ -296,7 +304,7 @@ perm_t downarrow(perm_t perm, int i)
         int seek_digit = (length-i+1)-1;
 
         for (j=0; j<length; j++) {
-                if (perm_get_entry(perm, j) == seek_digit) {
+                if (perm_get_block(perm, j) == seek_digit) {
                         pos = j;
                         break;
                 }
@@ -305,9 +313,9 @@ perm_t downarrow(perm_t perm, int i)
         perm = perm_remove_entry(perm, pos);
 
         for (j=0; j<length-1; j++) {
-                int digit = perm_get_entry(perm, j);
+                int digit = perm_get_block(perm, j);
                 if (digit > seek_digit) {
-                        perm = perm_set_entry(perm, j, digit-1);
+                        perm = perm_set_block(perm, j, digit-1);
                 }
         }
 
@@ -319,8 +327,6 @@ int p(int i, perm_t perm, perm_t pattern)
 {
         int perm_len    = perm_length(perm);
         int pattern_len = perm_length(pattern);
-
-        /*printf("permlen[%d] pattlen[%d]\n", perm_len, pattern_len);*/
 
         if (perm_len == pattern_len) {
                 if (perm == pattern) {
@@ -338,130 +344,19 @@ int p(int i, perm_t perm, perm_t pattern)
 }
 
 
-/*void counttt(perm_t perm, perm_t pattern, int perm_len, int pattern_len, int *count) */
-/*{*/
-        /*[>printf("cur_compl_len:%d\nlargestletterused:%d\nnumlettersleft:%d\n", cur_compl_len, largestletterused, numlettersleft);<]*/
-        /*[>print_bits(pat_compl);<]*/
-        /*[>print_bits(cur_compl);<]*/
-
-        /*[>if (perm != 0 && !prefix_matches(perm, pattern, perm_len)) {<]*/
-		/*[>printf("done 1 (no match)\n");<]*/
-                /*[>return;<]*/
-        /*[>}<]*/
-
-        /*[>if (!prefix_matches<]*/
-  
-	/*// Assumes all patterns are same size --> this is only case where */
-	/*// prefix is a pattern*/
-        /*if (perm_len == pattern_len) { */
-		/*[>printf("test matchxxx\n");<]*/
-                /*[>if (prefix_matches(perm, pattern, perm_len)) {<]*/
-                /*if (perm == pattern) {*/
-			/*printf("[!!]\n");*/
-                        /*(*count)++;*/
-                        /*return; // also assumes all patterns same size*/
-                /*} else {*/
-                        /*printf("[no match]\n");*/
-                        /*return;*/
-                /*}*/
-        /*}*/
-
-        /*int i;*/
-
-        /*for (i=pattern_len; i>0; i--) {*/
-                /*printf("[%d:%d]\n", i, perm_len);*/
-                /*perm_t minus = compute_downarrow2(perm, i+1, perm_len); */
-                /*[>printf("\n");<]*/
-                /*[>displayperm(perm);<]*/
-                /*[>printf("\n");<]*/
-                /*[>displayperm(minus);<]*/
-
-                /*counttt(minus, pattern, perm_len-1, pattern_len, count);*/
-        /*}*/
-  
-	/*printf("done 3\n");*/
-        /*return;*/
-/*}*/
-
-/*void count_brute_force(perm_t perm, perm_t pattern, int perm_digit, int pattern_digit, int *count)*/
-/*{*/
-        /*int perm_len    = perm_length(perm);*/
-        /*int pattern_len = perm_length(pattern);*/
-
-        /*int i;*/
-        /*int j;*/
-
-        /*int di, dj, pi, pj;*/
-
-        /*for (i=perm_digit; i<perm_len; i++) {*/
-                /*di = getdigit(perm, i);*/
-
-                /*for (j=i; j<perm_len; j++) {*/
-
-                        /*dj = getdigit(perm, j);*/
-
-                        /*pi = getdigit(pattern, pattern_digit);*/
-                        /*pj = getdigit(pattern, pattern_digit+1);*/
-
-                        /*[>printf("%d - %d >= %d - %d ?\n", di, dj, pi, pj);<]*/
-
-                        /*if (((di>dj) && (pi<pj)) || ((di<dj) && (pi>pj))) {*/
-                                /*[>printf("no match\n");<]*/
-                        /*} else if (((di>dj) && (di-dj) >= (pi-pj)) */
-                               /*||  ((di<dj) && (dj-di) >= (pj-pi))) {*/
-                                /*[>printf("gonna do something\n");<]*/
-                                /*if (pattern_digit == pattern_len - 2) {*/
-                                        /*[>printf("%d,%d matches %d,%d [!!]\n", di, dj, pi, pj);<]*/
-                                        /*printf("%d,%d[!]\n", di+1, dj+1);*/
-                                        /*[>printf("yes\n");<]*/
-                                        /*(*count)++;*/
-                                        /*return;*/
-                                /*} else {*/
-                                        /*printf("%d,", di+1);*/
-                                        /*[>printf("%d,%d matches %d,%d\n", di, dj, pi, pj);<]*/
-                                        /*count_brute_force(perm, pattern, j, pattern_digit + 1, count);*/
-                                /*}*/
-                        /*}*/
-                /*}*/
-
-                /*[> failure... this gets reset <]*/
-                /*printf("\33[2K\r");*/
-                /*pattern_digit = 0;*/
-        /*}*/
-/*}*/
-
-
-
-
-int countem(perm_t perm, perm_t pattern) 
+/******************************************************************************
+ * OTHER COUNTING STUFF
+ ******************************************************************************/
+int count(perm_t perm, perm_t pattern) 
 {
-	int perm_len = perm_length(perm);//getmaxdigit(perm);
-	int pat_len  = perm_length(pattern);//getmaxdigit(pattern);
-
-	/*perm_t perm_inverse = getinverse(perm, perm_len);*/
-
-	int count = 0;
-
-        /*count_brute_force(perm, pattern, 0, 0, &count);*/
-
-	/*counttt(perm, (perm_t)0, pattern, 0, pat_len, pat_len+1, 0, &count);*/
-        /*counttt(perm, pattern, perm_len, pat_len, &count);*/
-
-        count = p(0, perm, pattern);
-
-	/*printf("got count:%d\n", count);*/
-
-	return count;
+        return p(0, perm, pattern);
 }
-
 
 
 float occ(int n, int k, float density)
 {
         return (float)binom(n, k) * density;
 }
-
-
 
 void densities(int n, int k)
 {
@@ -491,49 +386,88 @@ void write_tally(FILE *f)
         }
 }
 
+/*void write_log(int fd)*/
+/*{*/
+        /*int i;*/
 
+        /*[> Rewind file <]*/
+        /*fseek(f, 0L, SEEK_SET);*/
 
+        /*for (i=0; i<560; i++) {*/
+                /*fprintf(f, "%d %d\n", i, Tally[i]); */
+        /*}*/
+/*}*/
 
 int Track = 0;
 
+int Total = 0;
+int Count = 0;
 
-/*  Function to swap values at two pointers */
+
+/**
+ * perm_swap()
+ * ```````````
+ * Swap the values at two indices
+ *
+ * @perm   : Permutation
+ * @index_a: First index
+ * @index_b: Second index
+ * Return  : Resulting permutation
+ *
+ * TODO
+ * Make this faster!
+ */
 perm_t perm_swap(perm_t perm, int index_a, int index_b)
 {
-        int a = perm_get_entry(perm, index_a);
-        int b = perm_get_entry(perm, index_b);
+        int a = perm_get_block(perm, index_a);
+        int b = perm_get_block(perm, index_b);
 
-        perm = perm_set_entry(perm, index_a, b);
-        perm = perm_set_entry(perm, index_b, a);
+        perm = perm_set_block(perm, index_a, b);
+        perm = perm_set_block(perm, index_b, a);
                 
         return perm;
 }
         
-/*  Function to print permutations of string
-*     This function takes three parameters:
-*        1. String
-*           2. Starting index of the string
-*       3. Ending index of the string. */
+/**
+ * permute()
+ * `````````
+ * Get all permutations using Heap's algorithm 
+ *
+ * @perm   : Permutation
+ * @pattern: Pattern to find
+ * @l      : Index to start permuting from (0 for whole string)
+ * @r      : Index to stop permuting on 
+ * Return  : Nothing
+ */
 void permute(perm_t p, perm_t pattern, int l, int r)
 {
         int i;
         int c;
                     
         if (l == r) {
-
-                c = countem(p, pattern);
+                c = count(p, pattern);
 
                 Tally[c]++;
 
+                #ifndef GO_FAST
                 Track++;
                 if (Track % 100) {
                         Track=0;
                         write_tally(Log);
                 }
 
+
                 printf("%d\t", c);
-                displayperm(p);
+                perm_print(p);
                 printf("\n");
+
+                fprintf(stderr, "\r(%f%%) %d/%d", ((float)Count/(float)Total)*100, Count++, Total);
+                #else
+                if (Track++ % 1000) {
+                        fprintf(stderr, "\r(%f%%) %d/%d", ((float)Count/(float)Total)*100, Count++, Total);
+                        Track=0;
+                }
+                #endif
         } else {
                 for (i=l; i<=r; i++) {
                         p = perm_swap(p, l, i);
@@ -544,105 +478,72 @@ void permute(perm_t p, perm_t pattern, int l, int r)
 }
 
 
-void yup(perm_t perm, perm_t pattern) 
-{
-        int len = perm_length(perm);
-        
-        permute(perm, pattern, 0, len-1); 
-}
+/*void yup(perm_t perm, perm_t pattern) */
+/*{*/
+        /*permute(perm, pattern, 0, perm_length(perm)-1); */
+/*}*/
 
 
-void explore_output(perm_t perm, perm_t pattern) 
-{
-        int i;
-        int c;
-        perm_t p = perm;
-        int len = perm_length(p);
+/*void explore_output(perm_t perm, perm_t pattern) */
+/*{*/
+        /*int i;*/
+        /*int c;*/
+        /*perm_t p = perm;*/
+        /*int len = perm_length(p);*/
 
-        if (len > 15) {
-                return;
-        }
+        /*if (len > 15) {*/
+                /*return;*/
+        /*}*/
 
-        for (i=0; i<len; i++) {
-                p = perm_insert_entry(p, i, len);
+        /*for (i=0; i<len; i++) {*/
+                /*p = perm_insert_block(p, i, len);*/
 
-                explore_output(p, pattern);
+                /*explore_output(p, pattern);*/
 
-                c = countem(p, pattern);
+                /*c = count(p, pattern);*/
 
-                Tally[c]++;
+                /*Tally[c]++;*/
 
-                Track++;
-                if (Track % 100) {
-                        Track=0;
-                        write_tally(Log);
-                }
+                /*Track++;*/
+                /*if (Track % 100) {*/
+                        /*Track=0;*/
+                        /*write_tally(Log);*/
+                /*}*/
 
-                printf("%d\t", c);
-                displayperm(p);
-                printf("\n");
+                /*printf("%d\t", c);*/
+                /*perm_print(p);*/
+                /*printf("\n");*/
 
-                p = perm_remove_entry(p, i);
-        }
-}
+                /*p = perm_remove_entry(p, i);*/
+        /*}*/
+/*}*/
 
 
-perm_t maken(int n)
-{
-        int i = 0;
-        perm_t p = 0;
-
-        for (i=0; i<n; i++) {
-                p = perm_set_entry(p, i, i);
-        }
-        return p;
-}
 
 int main(int argc, char** argv) 
 {
-        Log = fopen("tally.log", "w+");
+        if (argc != 4) {
+                printf("%s <pattern> <n> <tally file>\n", argv[0]);
+                return 0;
+        }
 
-        perm_t c = stringtoperm("312");
+        char *pattern_string = argv[1];
+        char *tally_file     = argv[3];
+        int n                = atoi(argv[2]);
 
-        /*perm_t ff = stringtoperm("123456789");*/
+        Log = fopen(tally_file, "w+");
 
-        perm_t ff = maken(10);
-        /*displayperm(ff);*/
-        /*return 1;*/
+        perm_t pattern = perm_from_string(pattern_string);
+        perm_t perm    = perm_of_length(n);
 
-        yup(ff, c);
+        Total = factorial(n);
+
+        permute(perm, pattern, 0, perm_length(perm)-1); 
+
+        #ifdef GO_FAST
+        write_tally(Log);
+        #endif
 
         return 1;
-
-        /*perm_t c = stringtoperm("312");*/
-
-
-        printf("pattern:");
-        displayperm(c);
-        printf("\n");
-
-        explore_output(c, c);
-
-        return 0;
-
-        perm_t a = stringtoperm("463152");
-        perm_t b = stringtoperm("312");
-
-        countem(a, b);
-
-        /*if (argc == 4) {*/
-                /*int   n = atoi(argv[1]);*/
-                /*int   k = atoi(argv[2]);*/
-                /*float x = (float)atof(argv[3]);*/
-
-                /*float o = occ(n, k, x);*/
-
-                /*printf("occurrences: %g\n", o);*/
-
-		/*densities(n, k);*/
-
-        /*}*/
-
-        return 0;
 }
 
