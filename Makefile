@@ -9,7 +9,7 @@ ASM_COMPILER=yasm
 #  optimize  
 #  level 3    
 #         \    
-CC_FLAGS=-O3 -s -fomit-frame-pointer -DUNIX #-ffast-math 
+CC_FLAGS=-O4 -s -fomit-frame-pointer -DUNIX #-ffast-math 
 LD_FLAGS=-lm 
 #	  /    
 #      math   

@@ -8,11 +8,19 @@
 #include <stdint.h>
 #include <errno.h>
 
-#define GO_FAST 1
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
 
-unsigned long long factorial(long long num) 
+/*uint64_t i;*/
+/*printf("%"PRIu64"\n", i);*/
+
+
+/*#define GO_FAST 1*/
+/* test */
+
+uint64_t factorial(uint64_t num) 
 {
-        int answer = 1;
+        uint64_t answer = 1;
   
         while (num > 1) {
                 answer *= num;
@@ -59,6 +67,18 @@ typedef uint64_t perm_t;
 
 #define PERM_WRITE_BLOCK(p, i, v) \
         (p | ((perm_t)v << (i * PERM_BLOCK_SIZE))) 
+
+
+#define perm_block(p, i) \
+        ((uint64_t)((p >> (i*PERM_BLOCK_SIZE)) & PERM_BLOCK_MASK))
+
+/*#define perm_swap(p, a, b) \*/
+        /*perm_block(p,a)*/
+
+        /*(uint64_t)((perm >> (index*PERM_BLOCK_SIZE)) & PERM_BLOCK_MASK); */
+
+        /*PERM_WRITE_BLOCK(PERM_CLEAR_BLOCK(perm, index), index, value);*/
+
 
 
 /**
@@ -344,12 +364,65 @@ int p(int i, perm_t perm, perm_t pattern)
 }
 
 
+perm_t downarrowfast(perm_t perm, int i, int length)
+{
+        int pos;
+        int j;
+
+        /* 
+         * In paper written as length-i+1, but we index from 0 in
+         * this implementation, so it requires another -1.  
+         */
+        int seek_digit = (length-i+1)-1;
+
+        for (j=0; j<length; j++) {
+                if (perm_get_block(perm, j) == seek_digit) {
+                        pos = j;
+                        break;
+                }
+        }
+
+        perm = perm_remove_entry(perm, pos);
+
+        for (j=0; j<length-1; j++) {
+                int digit = perm_get_block(perm, j);
+                if (digit > seek_digit) {
+                        perm = perm_set_block(perm, j, digit-1);
+                }
+        }
+
+        return perm;
+}
+
+int pfast(int i, perm_t perm, perm_t pattern, int perm_len, int pattern_len) 
+{
+        if (perm_len == pattern_len) {
+                if (perm == pattern) {
+                        return 1;
+                } else {
+                        return 0;
+                }
+        }
+
+        if (i == pattern_len+1) {
+                return 0;
+        }
+
+        return pfast(i, downarrow(perm, i+1), pattern, perm_len-1, pattern_len) + pfast(i+1, perm, pattern, perm_len, pattern_len);
+}
+
+
 /******************************************************************************
  * OTHER COUNTING STUFF
  ******************************************************************************/
 int count(perm_t perm, perm_t pattern) 
 {
         return p(0, perm, pattern);
+}
+
+int countfast(perm_t perm, perm_t pattern, int perm_len, int pattern_len) 
+{
+        return pfast(0, perm, pattern, perm_len, pattern_len);
 }
 
 
@@ -370,7 +443,10 @@ void densities(int n, int k)
 
 
 
-int Tally[560] = {0};
+/* Equal to nchoosek */
+#define TALLY_SIZE 1820
+
+uint64_t Tally[TALLY_SIZE] = {0};
 
 FILE *Log;
 
@@ -381,27 +457,15 @@ void write_tally(FILE *f)
         /* Rewind file */
         fseek(f, 0L, SEEK_SET);
 
-        for (i=0; i<560; i++) {
+        for (i=0; i<TALLY_SIZE; i++) {
                 fprintf(f, "%d %d\n", i, Tally[i]); 
         }
 }
 
-/*void write_log(int fd)*/
-/*{*/
-        /*int i;*/
 
-        /*[> Rewind file <]*/
-        /*fseek(f, 0L, SEEK_SET);*/
-
-        /*for (i=0; i<560; i++) {*/
-                /*fprintf(f, "%d %d\n", i, Tally[i]); */
-        /*}*/
-/*}*/
-
-int Track = 0;
-
-int Total = 0;
-int Count = 0;
+uint64_t Track = 0;
+uint64_t Total = 0;
+uint64_t Count = 0;
 
 
 /**
@@ -427,6 +491,133 @@ perm_t perm_swap(perm_t perm, int index_a, int index_b)
                 
         return perm;
 }
+
+
+void do_the_thing(perm_t p, perm_t pattern)
+{
+        int c;
+
+        c = count(p, pattern);
+
+        Tally[c]++;
+
+        Count++;
+
+        #ifndef GO_FAST
+        Track++;
+        if (Track % 100) {
+                Track=0;
+                write_tally(Log);
+        }
+
+        printf("%d\t", c);
+        perm_print(p);
+        printf("\n");
+
+        fprintf(stderr, "\r(%f%%) %d/%d", ((float)Count/(float)Total)*100, Count, Total);
+        #else
+        if (!(Track % 10000)) {
+                fprintf(stderr, "\r(%f%%) %d/%d", ((float)Count/(float)Total)*100, Count, Total);
+                Track=0;
+        }
+        Track++;
+        #endif
+}
+
+
+void generate_permutations(perm_t p, perm_t pattern) 
+{
+        int idx[4096];
+        int i;
+        int t;
+        int M;
+        int N;
+        int c;
+
+        N = perm_length(p);
+
+        for (i=1; i<=N; i++) {
+                perm_set_block(p, i-1, i-1);
+                idx[i] = 1;
+        }
+
+        /* EXECUTE FUNCTION */
+        do_the_thing(p, pattern);
+
+        for (i=1; i<=N;) {
+                if (idx[i] < i) {
+                        if (i % 2) {
+                                p = perm_swap(p, 0, i-1);
+                        } else {
+                                p = perm_swap(p, idx[i]-1, i-1);
+                        }
+                        idx[i]++;
+                        i = 1;
+
+                        /* EXECUTE FUNCTION */
+                        do_the_thing(p, pattern);
+                } else {
+                        idx[i++] = 1;
+                }
+        }
+}
+
+void generate_permutations_fast(perm_t p, perm_t pattern) 
+{
+        int idx[4096];
+        int i;
+        int t;
+        int M;
+        int N;
+        int c;
+
+        N = perm_length(p);
+        M = perm_length(pattern);
+
+        for (i=1; i<=N; i++) {
+                perm_set_block(p, i-1, i-1);
+                idx[i] = 1;
+        }
+
+        /* DO THE THING */
+        c = countfast(p, pattern, N, M);
+        Tally[c]++;
+        Count++;
+
+        if (Track++ == 10000) {
+                fprintf(stderr, "\r(%f%%) %d/%d", ((float)Count/(float)Total)*100, Count, Total);
+                Track=0;
+        }
+        /* DONE DOING THE THING */
+
+
+        for (i=1; i<=N;) {
+                if (idx[i] < i) {
+                        if (i % 2) {
+                                p = perm_swap(p, 0, i-1);
+                        } else {
+                                p = perm_swap(p, idx[i]-1, i-1);
+                        }
+                        idx[i]++;
+                        i = 1;
+
+                        /* DO THE THING */
+                        c = countfast(p, pattern, N, M);
+                        Tally[c]++;
+                        Count++;
+
+                        if (Track++ == 10000) {
+                                fprintf(stderr, "\r(%f%%) %"PRIu64"/%"PRIu64"", ((float)Count/(float)Total)*100, Count, Total);
+                                Track=0;
+                        }
+                        /* DONE DOING THE THING */
+
+                } else {
+                        idx[i++] = 1;
+                }
+        }
+}
+
         
 /**
  * permute()
@@ -463,7 +654,7 @@ void permute(perm_t p, perm_t pattern, int l, int r)
 
                 fprintf(stderr, "\r(%f%%) %d/%d", ((float)Count/(float)Total)*100, Count++, Total);
                 #else
-                if (Track++ % 1000) {
+                if (Track++ % 100000) {
                         fprintf(stderr, "\r(%f%%) %d/%d", ((float)Count/(float)Total)*100, Count++, Total);
                         Track=0;
                 }
@@ -536,13 +727,14 @@ int main(int argc, char** argv)
         perm_t pattern = perm_from_string(pattern_string);
         perm_t perm    = perm_of_length(n);
 
-        Total = factorial(n);
+        Total = factorial((uint64_t)n);
 
-        permute(perm, pattern, 0, perm_length(perm)-1); 
+        generate_permutations_fast(perm, pattern);
+        /*permute(perm, pattern, 0, perm_length(perm)-1); */
 
-        #ifdef GO_FAST
+        /*#ifdef GO_FAST*/
         write_tally(Log);
-        #endif
+        /*#endif*/
 
         return 1;
 }
