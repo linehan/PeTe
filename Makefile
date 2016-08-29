@@ -10,7 +10,7 @@ ASM_COMPILER=yasm
 #  level 3    
 #         \    
 CC_FLAGS=-O4 -s -fomit-frame-pointer -DUNIX #-ffast-math 
-LD_FLAGS=-lm 
+LD_FLAGS=-lm -pthread
 #	  /    
 #      math   
 #
@@ -43,7 +43,7 @@ LD_FLAGS=-lm
 # Configure files 
 #########################
 
-PROG_SOURCES=main.c
+PROG_SOURCES=main.c hashtable.c
 
 PROG_OBJECTS=$(PROG_SOURCES:.c=.o)
 
@@ -55,7 +55,7 @@ PROG_OBJECTS=$(PROG_SOURCES:.c=.o)
 all: p 
 
 p: $(PROG_SOURCES) 
-	$(CPP_COMPILER) $(CC_FLAGS) $(PROG_SOURCES) -o p
+	$(CPP_COMPILER) $(CC_FLAGS) $(PROG_SOURCES) -o p $(LD_FLAGS)
 
 clean:
 	rm -f $(PROG_OBJECTS) p gmon.out 
