@@ -43,7 +43,7 @@ LD_FLAGS=-lm -pthread
 # Configure files 
 #########################
 
-PROG_SOURCES=main.c perm.c hashtable.c pset.c
+PROG_SOURCES=main.c perm.c hashtable.c pset.c io.c
 
 PROG_OBJECTS=$(PROG_SOURCES:.c=.o)
 

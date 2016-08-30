@@ -34,6 +34,21 @@ void pset_add(struct pset_t *set, perm_t perm)
         set->size++;
 }
 
+void pset_sum(struct pset_t *a, struct pset_t *b)
+{
+        int i;
+        int j;
+
+        a->size += b->size;
+
+        /* We are NOT checking length of perm, so warning. */
+        for (i=0; i<a->n; i++) {
+                for (j=0; j<a->n; j++) {
+                        a->trace[i][j] += b->trace[i][j];
+                }
+        }
+}
+
 void pset_write(struct pset_t *set, FILE *file)
 {
         int i;

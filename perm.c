@@ -191,6 +191,36 @@ void perm_print(perm_t perm)
         /* printf("\n"); */
 }
 
+/**
+ * perm_string()
+ * `````````````
+ * Return a dynamically allocated string of the permutation digits
+ *
+ * @perm : Permutation to do this for 
+ * Return: String (must be free'd to prevent mem leak) 
+ */
+char *perm_get_string(perm_t perm) 
+{
+        int i;
+        int l;
+        int n;
+        int v;
+
+        l = perm_length(perm);
+
+        /* Assume at most 2 digits per block. */
+        char *str = calloc(1, 2*l*sizeof(char));
+        char *ptr = str;
+
+        for (i=0; i<l; i++) {
+                v = perm_get_block(perm, i);
+                n = sprintf(ptr, "%d", v);
+                ptr += n; /* Advance the string pointer */
+        }
+
+        return str;
+}
+
 
 void perm_print_bits(perm_t p)
 {

@@ -12,5 +12,6 @@ struct pset_t {
 void pset_init(struct pset_t *set, int n);
 void pset_add(struct pset_t *set, perm_t perm);
 void pset_write(struct pset_t *set, FILE *file);
+void pset_sum(struct pset_t *a, struct pset_t *b);
 
 #endif

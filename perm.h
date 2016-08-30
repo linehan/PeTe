@@ -54,5 +54,6 @@ perm_t perm_from_string(char *str);
 perm_t perm_of_length(int n);
 void perm_print(perm_t perm);
 void perm_print_bits(perm_t p);
+char *perm_get_string(perm_t perm);
 
 #endif

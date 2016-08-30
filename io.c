@@ -14,14 +14,14 @@
  * @...  : Format string arguments
  * Return: FILE stream pointer, or -1 on error.
  */
-int fopenf(const char *mode, const char *fmt, ...) 
+FILE *fopenf(const char *mode, const char *fmt, ...) 
 {
-        static char path[4096];
+        char path[4096];
 
         va_list args;
         va_start(args, fmt); 
         vsnprintf(path, 4096, fmt, args);
-        va_end(args)                                   
+        va_end(args);
 
         return fopen(path, mode);
 }
@@ -39,12 +39,12 @@ int fopenf(const char *mode, const char *fmt, ...)
  */
 int fmkdir(int perms, const char *fmt, ...)
 {
-        static char path[4096];
+        char path[4096];
 
         va_list args;
         va_start(args, fmt); 
         vsnprintf(path, 4096, fmt, args);
-        va_end(args)                                   
+        va_end(args);
 
         return mkdir(path, perms);
 }
