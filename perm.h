@@ -43,9 +43,30 @@ typedef uint64_t perm_t;
 #define perm_block(p, i) \
         ((uint64_t)((p >> (i*PERM_BLOCK_SIZE)) & PERM_BLOCK_MASK))
 
+inline uint64_t perm_get_block(perm_t perm, int index) 
+{
+        return (uint64_t)((perm >> (index*PERM_BLOCK_SIZE)) & PERM_BLOCK_MASK); 
+}
 
-uint64_t perm_get_block(perm_t perm, int index);
-perm_t perm_set_block(perm_t perm, int index, uint64_t value);
+inline perm_t perm_set_block(perm_t perm, int index, uint64_t value) 
+{
+        return PERM_WRITE_BLOCK(PERM_CLEAR_BLOCK(perm, index), index, value);
+        /*return (perm & ~((perm_t)PERM_BLOCK_MASK << (index * PERM_BLOCK_SIZE))) | ((perm_t)value << (index * PERM_BLOCK_SIZE)); // clear digit and then rewrite its value*/
+}
+
+inline perm_t perm_swap(perm_t perm, int index_a, int index_b)
+{
+        int a = perm_get_block(perm, index_a);
+        int b = perm_get_block(perm, index_b);
+
+        perm = perm_set_block(perm, index_a, b);
+        perm = perm_set_block(perm, index_b, a);
+                
+        return perm;
+}
+
+//uint64_t perm_get_block(perm_t perm, int index);
+//perm_t perm_set_block(perm_t perm, int index, uint64_t value);
 perm_t perm_insert_blank(perm_t perm, int index);
 perm_t perm_insert_block(perm_t perm, int index, uint64_t value);
 perm_t perm_remove_entry(perm_t perm, int index);

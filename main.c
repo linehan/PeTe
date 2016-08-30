@@ -120,6 +120,8 @@ perm_t downarrowfast(perm_t perm, int i, int length)
         for (j=0; j<length-1; j++) {
                 int digit = perm_get_block(perm, j);
                 if (digit > seek_digit) {
+                        /*printf("gotta change block\n");*/
+                        /*fflush(stdout);*/
                         perm = perm_set_block(perm, j, digit-1);
                 }
         }
@@ -127,12 +129,8 @@ perm_t downarrowfast(perm_t perm, int i, int length)
         return perm;
 }
 
-int BM_pfast_call_count = 0; 
-
 int pfast(int i, perm_t perm, perm_t pattern, int perm_len, int pattern_len) 
 {
-        BM_pfast_call_count++;
-
         if (perm_len == pattern_len) {
                 if (perm == pattern) {
                         return 1;
@@ -145,15 +143,13 @@ int pfast(int i, perm_t perm, perm_t pattern, int perm_len, int pattern_len)
                 return 0;
         }
 
-        return pfast(i, downarrow(perm, i+1), pattern, perm_len-1, pattern_len) + pfast(i+1, perm, pattern, perm_len, pattern_len);
+        return pfast(i, downarrowfast(perm, i+1, perm_len), pattern, perm_len-1, pattern_len) + pfast(i+1, perm, pattern, perm_len, pattern_len);
 }
 
-int BM_pffast_cache_misses = 0;
+/*int BM_pffast_cache_misses = 0;*/
 
 int pffast(int i, perm_t perm, perm_t pattern, int perm_len, int pattern_len, struct hashtable *ht) 
 {
-        BM_pfast_call_count++;
-
         if (perm_len == pattern_len) {
                 if (perm == pattern) {
                         return 1;
@@ -171,7 +167,7 @@ int pffast(int i, perm_t perm, perm_t pattern, int perm_len, int pattern_len, st
         hash_get(ht, perm+(i+1), &p);
 
         if (p == 0) {
-                BM_pffast_cache_misses++; 
+                /*BM_pffast_cache_misses++; */
                 p = downarrow(perm, i+1);
                 hash_put(ht, perm+(i+1), p);
         }
@@ -243,30 +239,6 @@ uint64_t Track = 0;
 uint64_t Total = 0;
 uint64_t Count = 0;
 
-
-/**
- * perm_swap()
- * ```````````
- * Swap the values at two indices
- *
- * @perm   : Permutation
- * @index_a: First index
- * @index_b: Second index
- * Return  : Resulting permutation
- *
- * TODO
- * Make this faster!
- */
-perm_t perm_swap(perm_t perm, int index_a, int index_b)
-{
-        int a = perm_get_block(perm, index_a);
-        int b = perm_get_block(perm, index_b);
-
-        perm = perm_set_block(perm, index_a, b);
-        perm = perm_set_block(perm, index_b, a);
-                
-        return perm;
-}
 
 void do_the_thing(perm_t p, perm_t pattern)
 {
@@ -1506,7 +1478,7 @@ int main(int argc, char *argv[])
                 t1    = rdtsc(); 
 
                 printf("countfast() computed for n=13 k=4 in %"PRIu64" cycles\n", t1-t0);
-                printf("pfast() called %d times\n", BM_pfast_call_count);
+                /*printf("pfast() called %d times\n", BM_pfast_call_count);*/
 
 
                 t0    = rdtsc(); 
@@ -1514,7 +1486,7 @@ int main(int argc, char *argv[])
                 t1    = rdtsc(); 
 
                 printf("countffast() computed for n=13 k=4 in %"PRIu64" cycles\n", t1-t0);
-                printf("cache missed %d times\n", BM_pffast_cache_misses);
+                /*printf("cache missed %d times\n", BM_pffast_cache_misses);*/
 
         } else if (!strcmp(argv[1], "--tally-with-classes-multithread")) {
 

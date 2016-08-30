@@ -27,6 +27,7 @@ void pset_add(struct pset_t *set, perm_t perm)
 
         /* We are NOT checking length of perm, so warning. */
         for (i=0; i<set->n; i++) {
+                /* SIMD THIS */
                 v = perm_get_block(perm, i);
 
                 set->trace[i][v] += 1;
