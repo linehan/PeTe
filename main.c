@@ -976,7 +976,7 @@ struct monitor_data_t {
         uint64_t total;
 };
 
-struct monitor_data_t MONITOR[64] = {{0}};
+struct monitor_data_t MONITOR[64]; 
 
 
 struct monitor_args_t {
@@ -1122,6 +1122,8 @@ void *monitor_threads(void *args)
         int i;
         float pct = 0;
 
+        fprintf(stderr, "Monitor thread is active\n");
+
         /* 
          * Store variables to prevent having to use
          * a mutex... since integer r/w is atomic,
@@ -1130,10 +1132,11 @@ void *monitor_threads(void *args)
         uint64_t count; 
         uint64_t total;
 
-        while (COMPUTE_THREADS_DONE == 0) {
-                /* Sleep for 1 second (this is Linux only!) */
-                sleep(1);
+        uint64_t total_all_threads = 0;
+        uint64_t count_all_threads = 0;
+        double pct_all_threads;
 
+        do { 
                 /* Rewind the file */
                 fseek(mon->log, 0L, SEEK_SET);
 
@@ -1141,11 +1144,24 @@ void *monitor_threads(void *args)
                         count = MONITOR[i].count;
                         total = MONITOR[i].total;
 
+                        count_all_threads += count;
+                        total_all_threads += total;
+
                         pct = ((float)count/(float)total)*100;
 
                         fprintf(mon->log, "thread %02d: (%f%%) %"PRIu64"/%"PRIu64"\n", i, pct, count, total); 
                 }
-        }
+
+                pct_all_threads = ((float)count_all_threads/(float)total_all_threads)*100;
+
+                fprintf(mon->log, "==========\nALL TOTAL: (%f%%) %"PRIu64"/%"PRIu64"\n", pct_all_threads, count_all_threads, total_all_threads); 
+
+                count_all_threads = 0;
+                total_all_threads = 0;
+
+                /* Sleep for 1 second (this is Linux only!) */
+                sleep(1);
+        } while (COMPUTE_THREADS_DONE == 0);
 }
 
 
@@ -1183,13 +1199,13 @@ void tally_with_classes(perm_t perm, perm_t pattern, int nthreads)
         char *pstr = perm_get_string(pattern);
 
         /* Print the project path */
-        sprintf(path, "%d-%s-%s", n, pstr, datestring);
+        sprintf(path, "%d-%s-%s", (int)n, pstr, datestring);
 
         free(pstr);
 
         mkdir(path, DIR_PERMS); 
 
-        struct pargs_t *args = calloc(1, nthreads*sizeof(struct pargs_t));
+        struct pargs_t *args = calloc(1, (nthreads+2)*sizeof(struct pargs_t));
 
         int i;
         int j;
@@ -1268,6 +1284,7 @@ void tally_with_classes(perm_t perm, perm_t pattern, int nthreads)
         }
 
         fprintf(stderr, "Block %d/%d complete after %"PRIu64"\n", block, nthreads, count-1);
+        fprintf(stderr, "All blocks complete\n");
 
         args[block].stop = UINT64_MAX;
 
@@ -1277,12 +1294,20 @@ void tally_with_classes(perm_t perm, perm_t pattern, int nthreads)
         struct monitor_args_t monitor_args; 
 
         monitor_args.nthreads = nthreads;
-        monitor_args.log = fopenf("%s/monitor.log", path);
+        monitor_args.log = fopenf("w+", "%s/monitor.log", path);
 
         for (i=0; i<nthreads; i++) {
                 MONITOR[i].count = 0;
                 MONITOR[i].total = args[i].blocksize;
         }
+
+        if (monitor_args.log) {
+                fprintf(stderr, "Monitor log is open\n");
+        } else {
+                fprintf(stderr, "Something wrong with monitor log\n");
+        }
+
+        /*fprintf(monitor_args.log, "Monitor thread log test\n");*/
 
 
         /*************************************************
@@ -1302,7 +1327,7 @@ void tally_with_classes(perm_t perm, perm_t pattern, int nthreads)
         /* Wait for compute threads to finish */
         for (i=0; i<nthreads; i++) {
                 rc = pthread_join(threads[i], NULL);
-                fprintf(stderr, "Compute thread [%d] complete");
+                fprintf(stderr, "Compute thread [%d] complete\n", i);
         }
 
         /* Signal monitor that threads are done */
@@ -1311,7 +1336,7 @@ void tally_with_classes(perm_t perm, perm_t pattern, int nthreads)
         /* Wait for monitor to finish */
         rc = pthread_join(monitor, NULL);
 
-        fprintf(stderr, "Monitor thread complete");
+        fprintf(stderr, "Monitor thread complete\n");
 
         /* Combine all the tallies and class counts into a single one */
         uint64_t *tally = calloc(1, _nchoosek * sizeof(uint64_t));
@@ -1320,6 +1345,9 @@ void tally_with_classes(perm_t perm, perm_t pattern, int nthreads)
         for (i=0; i<_nchoosek; i++) {
                 pset_init(&(class[i]), n);
         }
+
+        fprintf(stderr, "Computing occurrence class sizes...\n");
+        fprintf(stderr, "Computing permutons...\n");
 
         for (i=0; i<nthreads; i++) {
                 for (j=0; j<_nchoosek; j++) {
@@ -1331,9 +1359,12 @@ void tally_with_classes(perm_t perm, perm_t pattern, int nthreads)
         /***************** 
          * write it all
          *****************/
+        fprintf(stderr, "Writing tally...\n");
         /* Write the master tally file */
         FILE *tallyfile = fopenf("w+", "%s/compute.tally", path, n, pstr);
         write_tally_file(tallyfile, tally, _nchoosek);
+
+        fprintf(stderr, "Writing permutons...\n");
 
         /* Write the permuton files for each of the classes */
         for (i=0; i<_nchoosek; i++) {
@@ -1342,6 +1373,9 @@ void tally_with_classes(perm_t perm, perm_t pattern, int nthreads)
                         pset_write(&(class[i]), f);
                 }
         }
+
+        fprintf(stderr, "All results in ./%s\n", path);
+        fprintf(stderr, "RUN COMPLETE\n");
 
 }
 
