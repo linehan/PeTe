@@ -967,6 +967,24 @@ struct pargs_t {
 };
 
 
+/*
+ * Used for the logging thread to track progress
+ * of individual threads. 
+ */
+struct monitor_data_t { 
+        uint64_t count;
+        uint64_t total;
+};
+
+struct monitor_data_t MONITOR[64] = {{0}};
+
+
+struct monitor_args_t {
+        FILE *log;
+        int   nthreads;
+};
+
+
 void run_p(struct pargs_t *P)
 {
         int n;
@@ -982,6 +1000,9 @@ void run_p(struct pargs_t *P)
         perm_t pattern;
         uint64_t track = 0;
         uint64_t count = 0;
+
+        /* Set the total so the monitor thread can print percentages */
+        MONITOR[P->thread_id].total = P->blocksize;
 
         p       = P->start;
         stop    = P->stop;
@@ -1046,101 +1067,19 @@ void run_p(struct pargs_t *P)
                         pset_add(&cptr[c], p);
 
                         if (track++ == 10000) {
-                                /* Write progress every 10,000 perms */
-                                write_progress_file(P->logfile, count, P->blocksize);
+                                /* 
+                                 * Every 10,000 permutations, let the 
+                                 * monitor thread know the updated
+                                 * count. 
+                                 */
+                                MONITOR[P->thread_id].count = count;
                                 track=0;
                         }
                 } else {
                         iptr[i++] = 1;
                 }
         }
-
-        write_tally_file(P->tallyfile, tptr, P->nchoosek);
 }
-
-
-/*void tally_with_classes(perm_t perm, perm_t pattern) */
-/*{*/
-        /*uint64_t n = perm_length(perm);*/
-        /*uint64_t k = perm_length(pattern);*/
-        /*uint64_t nfactorial = factorial((uint64_t)n);*/
-        /*uint64_t nchoosek = nchoosek(n, k);*/
-
-        /*****************************
-         * Make the project directory 
-         *****************************/
-
-        /*char path[4096];*/
-
-        /*[> Collect current datetime as a string <]*/
-        /*char datestring[16];*/
-        /*time_t now;*/
-        /*struct tm *today;*/
-
-        /*time(&now);*/
-        /*today = localtime(&now);*/
-
-        /*strftime(date, 15, "%Y%m%d", today);*/
-
-        /*[> Make the pattern into a digit string <]*/
-        /*char *pstr = perm_get_string(pattern);*/
-
-        /*[> Print the project path <]*/
-        /*sprintf(path, "%d-%s-%s", n, pstr, datestring);*/
-
-        /*mkdir(DIR_PERMS, path); */
-
-        /*[> Open the project logfile and tallyfile <]*/
-        /*FILE *logfile   = fopenf("w+", "%s/%d-%s.log", path, n, pstr);*/
-        /*FILE *tallyfile = fopenf("w+", "%s/%d-%s.tally", path, n, pstr);*/
-
-        /*************************
-         * Create the class psets
-         *************************/
-
-        /*int nclasses = nchoosek(n, perm_length(pattern));*/
-
-        /*struct pset_t *classes = calloc(1, nclasses*sizeof(struct pset_t));*/
-
-        /*int i;*/
-        /*for (i=0; i<nchoosek; i++) {*/
-                /*pset_init(&classes[i], n);*/
-        /*}*/
-
-        /*************************
-         * Build the pargs object 
-         *************************/
-        /*struct pargs_t A;*/
-
-        /*A.start = perm;*/
-        /*A.stop  = 0;*/
-        /*A.pattern = pattern;*/
-        /*A.logfile   = logfile;*/
-        /*A.tallyfile = tallyfile;*/
-        /*A.n        = n;*/
-        /*A.k        = k;*/
-        /*A.nchoosek = nchoosek;*/
-        /*A.nfactorial = nfactorial;*/
-        /*A.tally = calloc(1, nchoosek * sizeof(uint64_t));*/
-        /*A.class = calloc(1, nchoosek * sizeof(struct pset_t));*/
-
-        /*for (i=0; i<nchoosek; i++) {*/
-                /*pset_init(&A.class[i], n);*/
-        /*}*/
-
-        /*run_p(&A);*/
-
-        /*
-         * Print class files and tally file
-         */
-        /*for (i=0; i<nclasses; i++) {*/
-                /*if (A->class[i].size != 0) {*/
-                        /*FILE *f = fopenf("w+", "%d.%s-%s/class.%d.trace", n, pstr, datestring, i);*/
-                        /*pset_write(&A.class[i], f);*/
-                /*}*/
-        /*}*/
-/*}*/
-
 
 void *run_tally_with_classes(void *A) 
 {
@@ -1150,27 +1089,63 @@ void *run_tally_with_classes(void *A)
 
         int i;
 
-        char *pstr = perm_get_string(P->pattern);
+        /*char *pstr = perm_get_string(P->pattern);*/
 
         /* Open the project logfile and tallyfile */
-        P->logfile   = fopenf("w+", "%s/%d-%s.t%d.log", P->path, P->n, pstr, P->thread_id);
-        P->tallyfile = fopenf("w+", "%s/%d-%s.t%d.tally", P->path, P->n, pstr, P->thread_id);
+        /*P->logfile   = fopenf("w+", "%s/%d-%s.t%d.log", P->path, P->n, pstr, P->thread_id);*/
+        /*P->tallyfile = fopenf("w+", "%s/%d-%s.t%d.tally", P->path, P->n, pstr, P->thread_id);*/
 
-        free(pstr);
+        /*free(pstr);*/
 
         run_p(P);
 
         /*
          * Print class files and tally file
          */
-        for (i=0; i<P->nchoosek; i++) {
-                if (P->class[i].size != 0) {
-                        FILE *f = fopenf("w+", "%s/class.%d.t%d.trace", P->path, i, P->thread_id);
-                        pset_write(&(P->class[i]), f);
-                }
-        }
+        /*for (i=0; i<P->nchoosek; i++) {*/
+                /*if (P->class[i].size != 0) {*/
+                        /*FILE *f = fopenf("w+", "%s/class.%d.t%d.trace", P->path, i, P->thread_id);*/
+                        /*pset_write(&(P->class[i]), f);*/
+                /*}*/
+        /*}*/
 
         return NULL;
+}
+
+
+int COMPUTE_THREADS_DONE = 0;
+
+void *monitor_threads(void *args)
+{
+        struct monitor_args_t *mon = (struct monitor_args_t *)args;
+
+        int i;
+        float pct = 0;
+
+        /* 
+         * Store variables to prevent having to use
+         * a mutex... since integer r/w is atomic,
+         * and total won't change, only count.
+         */
+        uint64_t count; 
+        uint64_t total;
+
+        while (COMPUTE_THREADS_DONE == 0) {
+                /* Sleep for 1 second (this is Linux only!) */
+                sleep(1);
+
+                /* Rewind the file */
+                fseek(mon->log, 0L, SEEK_SET);
+
+                for (i=0; i<mon->nthreads; i++) {
+                        count = MONITOR[i].count;
+                        total = MONITOR[i].total;
+
+                        pct = ((float)count/(float)total)*100;
+
+                        fprintf(mon->log, "thread %02d: (%f%%) %"PRIu64"/%"PRIu64"\n", i, pct, count, total); 
+                }
+        }
 }
 
 
@@ -1297,19 +1272,46 @@ void tally_with_classes(perm_t perm, perm_t pattern, int nthreads)
         args[block].stop = UINT64_MAX;
 
         /*************************************************
+         * Create a monitor thread arguments
+         *************************************************/
+        struct monitor_args_t monitor_args; 
+
+        monitor_args.nthreads = nthreads;
+        monitor_args.log = fopenf("%s/monitor.log", path);
+
+        for (i=0; i<nthreads; i++) {
+                MONITOR[i].count = 0;
+                MONITOR[i].total = args[i].blocksize;
+        }
+
+
+        /*************************************************
          * Run each of the args in its own thread 
          *************************************************/
         pthread_t threads[64];
+        pthread_t monitor;
         int rc;
        
         for (i=0; i<nthreads; i++) { 
                 rc = pthread_create(&threads[i], NULL, run_tally_with_classes, (void *)&args[i]);
         }
 
-        /* Wait for threads to finish */
+        /* Create the monitor thread */
+        pthread_create(&monitor, NULL, monitor_threads, (void *)&monitor_args);
+
+        /* Wait for compute threads to finish */
         for (i=0; i<nthreads; i++) {
                 rc = pthread_join(threads[i], NULL);
+                fprintf(stderr, "Compute thread [%d] complete");
         }
+
+        /* Signal monitor that threads are done */
+        COMPUTE_THREADS_DONE = 1;
+
+        /* Wait for monitor to finish */
+        rc = pthread_join(monitor, NULL);
+
+        fprintf(stderr, "Monitor thread complete");
 
         /* Combine all the tallies and class counts into a single one */
         uint64_t *tally = calloc(1, _nchoosek * sizeof(uint64_t));
@@ -1326,96 +1328,22 @@ void tally_with_classes(perm_t perm, perm_t pattern, int nthreads)
                 }
         }
 
-
-        
         /***************** 
          * write it all
          *****************/
-        pstr = perm_get_string(pattern);
+        /* Write the master tally file */
+        FILE *tallyfile = fopenf("w+", "%s/compute.tally", path, n, pstr);
+        write_tally_file(tallyfile, tally, _nchoosek);
 
-        /* Open the project logfile and tallyfile */
-        FILE *tallyfile = fopenf("w+", "%s/%d-%s.tally", path, n, pstr);
-
-        free(pstr);
-
+        /* Write the permuton files for each of the classes */
         for (i=0; i<_nchoosek; i++) {
                 if (class[i].size != 0) {
-                        FILE *f = fopenf("w+", "%s/class.%d.trace", path, i);
+                        FILE *f = fopenf("w+", "%s/class.%d.permuton", path, i);
                         pset_write(&(class[i]), f);
                 }
         }
 
-        write_tally_file(tallyfile, tally, _nchoosek);
 }
-
-
-/*void tally_with_classes_threaded(perm_t p, perm_t pattern, int nthreads) */
-/*{*/
-        /*int index[32];*/
-        /*uint64_t block_size;*/
-        /*int current_block = 0;*/
-        /*int count = 0;*/
-        /*int i;*/
-        /*int j;*/
-        /*perm_t p;*/
-
-        /*block_size = (uint64_t)factorial(perm_len) / (uint64_t)nthreads;*/
-        /*p          = perm_of_length(perm_len);*/
-
-        /*for (i=1; i<=perm_len; i++) {*/
-                /*perm_set_block(p, i-1, i-1);*/
-                /*index[i] = 1;*/
-        /*}*/
-
-        /*args[0].start     = p;*/
-        /*args[0].pattern   = pattern;*/
-        /*args[0].i0        = 1;*/
-        /*args[0].thread_id = 0;*/
-        /*args[0].total     = block_size;*/
-        /*for (j=0; j<16; j++) {*/
-                /*args[0].index[j] = index[j];*/
-        /*}*/
-
-        /*current_block = 1;*/
-
-        /*for (i=1; i<=perm_len;) {*/
-                /*if (index[i] < i) {*/
-                        /*if (i % 2) {*/
-                                /*p = perm_swap(p, 0, i-1);*/
-                        /*} else {*/
-                                /*p = perm_swap(p, index[i]-1, i-1);*/
-                        /*}*/
-                        /*index[i]++;*/
-                        /*i = 1;*/
-
-                        /*if (count++ == block_size) {*/
-                                /*args[current_block-1].stop = p;*/
-                                /*args[current_block].start = p;*/
-                                /*args[current_block].pattern = pattern;*/
-                                /*args[current_block].i0 = i;*/
-                                /*args[current_block].thread_id = current_block;*/
-                                /*args[current_block].total     = block_size;*/
-                                /*for (j=0; j<16; j++) {*/
-                                        /*args[current_block].index[j] = index[j];*/
-                                /*}*/
-
-                                /*current_block++;*/
-
-                                /*if (current_block > nthreads) {*/
-                                        /*fprintf(stderr, "too many blocks!\n");*/
-                                        /*exit(1);*/
-                                /*}*/
-
-                                /*count = 0;*/
-                        /*}*/
-                /*} else {*/
-                        /*index[i++] = 1;*/
-                /*}*/
-        /*}*/
-
-        /*args[current_block].stop = 0;*/
-/*}*/
-
 
 
 inline uint64_t rdtsc() 
@@ -1498,58 +1426,6 @@ int main(int argc, char *argv[])
                 perm_t perm    = perm_of_length(n);
 
                 tally_with_classes(perm, pattern, threadcount);
-
-                /*[> Make project path and files <]*/
-                /*char path[4096];*/
-                /*char *pstr = perm_get_string(pattern);*/
-
-                /*sprintf(path, "%d-%s-%s", n, pstr, date);*/
-
-                /*mkdir(DIR_PERMS, path); */
-
-                /*FILE *logfile   = fopenf("w+", "%s/%d-%s.log", path, n, pstr);*/
-                /*FILE *tallyfile = fopenf("w+", "%s/%d-%s.tally", path, n, pstr);*/
-
-                /*[>***********************<]*/
-                /*int nclasses = nchoosek(n, perm_length(pattern));*/
-
-                /*struct pset_t *classes = calloc(1, nclasses*sizeof(struct pset_t));*/
-
-                /*int i;*/
-                /*for (i=0; i<nclasses; i++) {*/
-                        /*pset_init(&classes[i], n);*/
-                /*}*/
-                /*[>***********************<]*/
-
-                /*Total = factorial((uint64_t)n);*/
-
-                /*generate_permutations_fast_classes(perm, pattern, classes);*/
-                
-
-                /*
-                 * Print class files and tally file
-                 */
-
-                /*struct tm *today;  */
-                /*char date[16];*/
-
-                /*//get current date  */
-                /*today = localtime(&now);*/
-
-                /*strftime(date, 15, "%Y%m%d", today);*/
-
-                /*char *pattstr = perm_get_string(pattern);*/
-
-                /*fmkdir(DIR_PERMS, "%d.%s-%s", n, pattstr, date); */
-
-                /*for (i=0; i<nclasses; i++) {*/
-                        /*if (classes[i].size != 0) {*/
-                                /*FILE *f = fopenf("w+", "%d.%s-%s/class.%d.trace", n, pattstr, date, i);*/
-                                /*pset_write(&classes[i], f);*/
-                        /*}*/
-                /*}*/
-
-                /*write_tally(Log);*/
 
         } else if (!strcmp(argv[1], "--tally")) {
                 char *pattern_string = argv[1];
