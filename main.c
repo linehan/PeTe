@@ -1165,6 +1165,30 @@ void *monitor_threads(void *args)
 }
 
 
+inline void print_to_blocklist(FILE *blocklist, int block, int *index, perm_t perm, int i)
+{
+        int j;
+
+        fprintf(blocklist, "%d: ", block);
+        for (j=0; j<16; j++) {
+                if (j != 15) {
+                        fprintf(blocklist, "%"PRIu64",", perm_get_block(perm, j));
+                } else {
+                        fprintf(blocklist, "%"PRIu64, perm_get_block(perm, j));
+                }
+        }
+        fprintf(blocklist, " ");
+        for (j=0; j<16; j++) {
+                if (j != 15) {
+                        fprintf(blocklist, "%d,", index[j]);
+                } else {
+                        fprintf(blocklist, "%d", index[j]);
+                }
+        }
+        fprintf(blocklist, " %d\n", i);
+}
+
+
 void tally_with_classes(perm_t perm, perm_t pattern, int nthreads)
 {
         if (nthreads > 64) {
@@ -1227,6 +1251,37 @@ void tally_with_classes(perm_t perm, perm_t pattern, int nthreads)
         }
 
 
+        pthread_t threads[64];
+        pthread_t monitor;
+        int rc;
+
+        /*************************************************
+         * Create a monitor thread arguments
+         *************************************************/
+        struct monitor_args_t monitor_args; 
+
+        monitor_args.nthreads = nthreads;
+        monitor_args.log = fopenf("w+", "%s/monitor.log", path);
+
+        for (i=0; i<nthreads; i++) {
+                MONITOR[i].count = 0;
+                MONITOR[i].total = args[i].blocksize;
+        }
+
+        if (monitor_args.log) {
+                fprintf(stderr, "Monitor log is open\n");
+        } else {
+                fprintf(stderr, "Something wrong with monitor log\n");
+        }
+
+        /* Create the monitor thread */
+        pthread_create(&monitor, NULL, monitor_threads, (void *)&monitor_args);
+
+        
+        FILE *blocklist = fopenf("w+", "%s/blocklist.log", path);
+
+
+
         /*************************************************
          * Run through the permutation list once to init 
          *************************************************/
@@ -1249,6 +1304,9 @@ void tally_with_classes(perm_t perm, perm_t pattern, int nthreads)
                 args[0].index[j] = index[j];
         }
 
+        print_to_blocklist(blocklist, 0, index, args[0].start, i);
+
+
         for (i=1; i<=n;) {
                 if (index[i] < i) {
                         if (i % 2) {
@@ -1269,7 +1327,11 @@ void tally_with_classes(perm_t perm, perm_t pattern, int nthreads)
                                         args[block].index[j] = index[j];
                                 }
 
+                                print_to_blocklist(blocklist, block, index, perm, i);
+
                                 fprintf(stderr, "Block %d/%d complete after %"PRIu64"\n", block, nthreads, count-1);
+
+                                pthread_create(&threads[block-1], NULL, run_tally_with_classes, (void *)&args[block-1]);
 
                                 if (block > nthreads) {
                                         fprintf(stderr, "too many blocks!\n");
@@ -1284,28 +1346,12 @@ void tally_with_classes(perm_t perm, perm_t pattern, int nthreads)
         }
 
         fprintf(stderr, "Block %d/%d complete after %"PRIu64"\n", block, nthreads, count-1);
+        args[block].stop = UINT64_MAX;
+        pthread_create(&threads[block], NULL, run_tally_with_classes, (void *)&args[block]);
+
         fprintf(stderr, "All blocks complete\n");
 
-        args[block].stop = UINT64_MAX;
 
-        /*************************************************
-         * Create a monitor thread arguments
-         *************************************************/
-        struct monitor_args_t monitor_args; 
-
-        monitor_args.nthreads = nthreads;
-        monitor_args.log = fopenf("w+", "%s/monitor.log", path);
-
-        for (i=0; i<nthreads; i++) {
-                MONITOR[i].count = 0;
-                MONITOR[i].total = args[i].blocksize;
-        }
-
-        if (monitor_args.log) {
-                fprintf(stderr, "Monitor log is open\n");
-        } else {
-                fprintf(stderr, "Something wrong with monitor log\n");
-        }
 
         /*fprintf(monitor_args.log, "Monitor thread log test\n");*/
 
@@ -1313,16 +1359,11 @@ void tally_with_classes(perm_t perm, perm_t pattern, int nthreads)
         /*************************************************
          * Run each of the args in its own thread 
          *************************************************/
-        pthread_t threads[64];
-        pthread_t monitor;
-        int rc;
        
-        for (i=0; i<nthreads; i++) { 
-                rc = pthread_create(&threads[i], NULL, run_tally_with_classes, (void *)&args[i]);
-        }
+        /*for (i=0; i<nthreads; i++) { */
+                /*rc = pthread_create(&threads[i], NULL, run_tally_with_classes, (void *)&args[i]);*/
+        /*}*/
 
-        /* Create the monitor thread */
-        pthread_create(&monitor, NULL, monitor_threads, (void *)&monitor_args);
 
         /* Wait for compute threads to finish */
         for (i=0; i<nthreads; i++) {
