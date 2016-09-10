@@ -119,17 +119,17 @@ perm_t perm_insert_block(perm_t perm, int index, uint64_t value)
  * NOTE:
  * Blocks at indices higher than @index will be shifted 1 to the left.
  */
-perm_t perm_remove_entry(perm_t perm, int index) 
-{
-        perm_t bottom = perm & (((perm_t)1 << (PERM_BLOCK_SIZE * index)) - 1);
-        perm_t top = perm & ((~ (perm_t)0) - (((perm_t)1 << (PERM_BLOCK_SIZE * index + PERM_BLOCK_SIZE)) - 1));
+/*perm_t perm_remove_block(perm_t perm, int index) */
+/*{*/
+        /*perm_t bottom = perm & (((perm_t)1 << (PERM_BLOCK_SIZE * index)) - 1);*/
+        /*perm_t top = perm & ((~ (perm_t)0) - (((perm_t)1 << (PERM_BLOCK_SIZE * index + PERM_BLOCK_SIZE)) - 1));*/
 
-        if ((PERM_BLOCK_SIZE * index + PERM_BLOCK_SIZE) == PERM_SIZE) { 
-                return bottom; // top is ill-defined in this case
-        }
+        /*if ((PERM_BLOCK_SIZE * index + PERM_BLOCK_SIZE) == PERM_SIZE) { */
+                /*return bottom; // top is ill-defined in this case*/
+        /*}*/
 
-        return bottom + (top >> PERM_BLOCK_SIZE); 
-}
+        /*return bottom + (top >> PERM_BLOCK_SIZE); */
+/*}*/
 
 /**
  * perm_length()
@@ -260,19 +260,34 @@ void perm_print_bits(perm_t p)
         printf("\n");
 }
 
+/**/
+perm_t perm_inverse(perm_t perm, int length) 
+{
+        perm_t inverse = 0;
+        int i;
 
-/*perm_t getinverse(perm_t perm, int length) */
-/*{*/
-        /*perm_t inverse = 0;*/
-        /*int i;*/
+                /*perm_print(inverse);*/
+                /*printf("\n");*/
 
-        /*for (i=0; i<length; i++) {*/
-		/*uint64_t digit = getdigit(perm, i);*/
-		/*[>printf("get [%u]=%u set[%u]=%u\n", i, digit, digit, i);<]*/
-                    /*inverse = setdigit(inverse, (int)digit, (uint64_t)i);*/
-        /*}*/
+        for (i=0; i<length; i++) {
+                uint64_t digit = perm_get_block(perm, i);
+                /*[>printf("get [%u]=%u set[%u]=%u\n", i, digit, digit, i);<]*/
+                /*printf("setting inv[%"PRIu64"] = %d\n", digit, i);*/
+                /*printf("perm_set_block(inverse, %"PRIu64", %"PRIu64")\n", (uint64_t)digit, i);*/
+                inverse = perm_set_block(inverse, (uint64_t)digit, (uint64_t)i);
+                /*perm_print(inverse);*/
+                /*printf("\n");*/
+        }
         
-        /*return inverse;*/
+        return inverse;
+}
+
+/*inline perm_t getinverse(perm_t perm, int length) {*/
+  /*perm_t answer = 0;*/
+  /*for (int i = 0; i < length; i++) {*/
+    /*answer = setdigit(answer, getdigit(perm, i), i);*/
+  /*}*/
+  /*return answer;*/
 /*}*/
 
 /*uint64_t getmaxdigit(perm_t perm) */
@@ -296,3 +311,39 @@ void perm_print_bits(perm_t p)
 	 */
 	/*return (__builtin_clz(pattern ^ perm) < perm_len) ? 1 : 0;*/
 /*}*/
+
+
+perm_t perm_from_csv(char *csv_string)
+{
+        /* 
+         * strtok_r() mutates its argument string, so we must
+         * copy the (possibly immutable e.g. a string literal)
+         * argument @csv to this mutable buffer before proceeding.
+         */
+        char csv[4096];
+
+        char *tok; /* token */
+        char *ptr; /* pointer */
+
+        perm_t perm = 0;
+        int i = 0;
+        int value;
+
+        /* Copy csv to buffer, making it mutable. */
+        strncpy(csv, csv_string, 4096); 
+
+        /* Make a pointer to the buffer for strtok_r() to use. */
+        ptr = csv;
+
+        for (tok=strtok_r(csv,",",&ptr);tok!=NULL;tok=strtok_r(NULL,",",&ptr)) {
+                sscanf(tok, "%d", &value);
+                /* 
+                 * Assume the permutation digits start from 0 
+                 * Otherwise we would use (value - 1).
+                 */
+                perm = perm_set_block(perm, i++, (uint64_t)value);
+        }
+
+        return perm;
+}
+

@@ -25,7 +25,10 @@ void pset_add(struct pset_t *set, perm_t perm)
         int i;
         int v;
 
-        /* We are NOT checking length of perm, so warning. */
+        /* 
+         * We are NOT checking length of perm, so warning. 
+         * We assume that set->n is equal to length of perm.
+         */
         for (i=0; i<set->n; i++) {
                 /* SIMD THIS */
                 v = perm_get_block(perm, i);
