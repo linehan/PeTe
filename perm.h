@@ -90,5 +90,6 @@ void perm_print(perm_t perm);
 void perm_print_bits(perm_t p);
 char *perm_get_string(perm_t perm);
 perm_t perm_from_csv(char *csv_string);
+char *perm_get_string_literal(perm_t perm, int length);
 
 #endif

@@ -246,6 +246,29 @@ char *perm_get_string(perm_t perm)
         return str;
 }
 
+char *perm_get_string_literal(perm_t perm, int length) 
+{
+        int i;
+        int l;
+        int n;
+        int v;
+
+        /* Don't assume length from digits */
+        l = length;
+
+        /* Assume at most 2 digits per block. */
+        char *str = calloc(1, 2*l*sizeof(char));
+        char *ptr = str;
+
+        for (i=0; i<l; i++) {
+                v = perm_get_block(perm, i);
+                n = sprintf(ptr, "%d", v);
+                ptr += n; /* Advance the string pointer */
+        }
+
+        return str;
+}
+
 
 void perm_print_bits(perm_t p)
 {
