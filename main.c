@@ -15,8 +15,6 @@
 #include "ptable.h"
 #include "io.h"
 
-/*#define GO_FAST 1*/
-/* test */
 
 
 /******************************************************************************
@@ -52,6 +50,56 @@ void print_bits(uint64_t v)
         }
         printf("\n");
 }
+
+
+
+
+        /*perm_t one = perm_from_csv("0,1,2");*/
+        /*perm_t two = perm_from_csv("0,2,1");*/
+
+        /*perm_t onea = perm_from_csv("0,1,2,3");*/
+        /*perm_t twoa = perm_from_csv("0,1,3,2");*/
+
+        /*perm_t three = one - two;*/
+        /*perm_t threea = onea - twoa;*/
+
+        /*perm_print_bits(one);*/
+        /*perm_print_bits(two);*/
+        /*perm_print_bits(three);*/
+        /*perm_print(three);*/
+
+        /*printf("\n");*/
+
+        /*perm_print_bits(onea);*/
+        /*perm_print_bits(twoa);*/
+        /*perm_print_bits(threea);*/
+        /*perm_print(threea);*/
+
+        /*printf("\n");*/
+
+        /*perm_print_bits(twoa + threea);*/
+        /*perm_print(twoa + threea);*/
+        /*printf("\n");*/
+
+
+        /*onea = perm_from_csv("0,1,2,3");*/
+        /*[>twoa = perm_from_csv("0,0,15,0");<]*/
+        /*twoa = perm_from_csv("3,1,2,0");*/
+        /*perm_print(onea - twoa);*/
+
+        /*printf("\n");*/
+
+        /*[> wouldn't that be nice? <]*/
+        /*[>uint64_t step = UINT64_MAX/factorial(16);<]*/
+
+        /*[>perm_print(onea + step);<]*/
+        /*[>printf("\n");<]*/
+        /*[>perm_print(onea + 2*step);<]*/
+        /*[>printf("\n");<]*/
+
+        /*[>perm_print_bits(twoa);<]*/
+        /*[>perm_print_bits(threea);<]*/
+/*}*/
 
 
 
@@ -200,6 +248,41 @@ perm_t perm_complement(perm_t perm, int length)
         return compl;
 }
 
+perm_t perm_reduce(perm_t perm, int length)
+{
+        int i;
+        int j;
+
+        uint64_t min_value    = UINT64_MAX;
+        uint64_t min_index    = 0;
+        uint64_t cutoff_index = 0;
+        uint64_t cutoff_value = 0;
+        uint64_t val          = 0;
+
+        perm_t new = 0;
+
+        for (i=0; i<length; i++) {
+                for (j=0; j<length; j++) {
+                        val = perm_get_block(perm, j); 
+
+                        if ((i == 0 || val > cutoff_value) && val < min_value) {
+                                /*printf("min candidate:%d\n", val);*/
+                                min_value = val;
+                                min_index = j;
+                        }
+                }
+                /*printf("min value:%d\n", min_value);*/
+                /*printf("min index:%d\n", min_index);*/
+                new = perm_set_block(new, min_index, (uint64_t)i);
+                /*perm_print(new);*/
+                /*printf("\n");*/
+                cutoff_value = min_value;
+                min_value    = UINT64_MAX; /* big value so first loop hits */
+        }
+
+        return new;
+}
+
 perm_t perm_prefix(perm_t perm, int prefix_length)
 {
         perm_t prefix = 0;
@@ -271,7 +354,7 @@ void build_complement_prefixes(struct ptable_t *table, perm_t perm)
         uint64_t helperbitmap = 0; // bit map of which letters we've seen so far
 
         for (i=0; i<length; i++) {
-                prefix = perm_prefix(compl, length-i);
+                prefix = perm_reduce(perm_prefix(compl, length-i), length-i);
                 /*__extendnormalizetop(perm, inverse, length, i, &prefix, &helperbitmap);*/
                 printf("extension is: %s\n",perm_get_string(prefix));
                 /*print_bits(helperbitmap);*/
@@ -282,6 +365,28 @@ void build_complement_prefixes(struct ptable_t *table, perm_t perm)
                 }
         }
 }
+
+void etc(void)
+{
+        /*perm_t perm = perm_from_csv("5,3,8,0");*/
+
+        /*perm_t reduce = perm_reduce(perm, 4);*/
+
+        /*perm_print(perm); */
+        /*printf("\n");*/
+        /*perm_print(reduce); */
+        /*printf("\n");*/
+
+        /*return;*/
+        struct ptable_t tab;
+
+        ptable_init(&tab, 600000);
+
+        perm_t pattern = perm_from_csv("0,1,2,3");
+
+        build_complement_prefixes(&tab, pattern);
+}
+
 
 void prefix_test(void)
 {
@@ -311,7 +416,7 @@ void prefix_test(void)
 
 
 /*checkpatterns(perm, inverse, 0, 0, currentsize, maxpatternsize, 0, prefixmap, count);*/
-void checkpatterns(perm_t perm, perm_t inverse, perm_t currentpatterncomplement, int currentpatternlength, int largestletterused, int numlettersleft, uint64_t seenpos, struct ptable_t *prefixmap, int *count) 
+int checkpatterns(perm_t perm, perm_t inverse, perm_t currentpatterncomplement, int currentpatternlength, int largestletterused, int numlettersleft, uint64_t seenpos, struct ptable_t *prefixmap, int *count) 
 {
         /*printf("perm:");*/
         /*perm_print(perm); */
@@ -321,6 +426,9 @@ void checkpatterns(perm_t perm, perm_t inverse, perm_t currentpatterncomplement,
         /*printf("\n");*/
 
         /*printf("largest-used:%d, num-left:%d current-length:%d\n", largestletterused, numlettersleft, currentpatternlength);*/
+        int val;
+
+        /*printf("compl:%s\n", perm_get_string(currentpatterncomplement));*/
 
         if (currentpatterncomplement != 0 && !ptable_contains(prefixmap, currentpatterncomplement)) {
                 /*[> Early exit <]*/
@@ -329,9 +437,12 @@ void checkpatterns(perm_t perm, perm_t inverse, perm_t currentpatterncomplement,
                 return;
         }
 
-  
         if (numlettersleft == 0) { // Assumes all patterns are same size --> this is only cae where prefix is a pattern
                 (*count)++;
+                /*printf("count := %d\n", *count);*/
+                /*if (*count > 1) {*/
+                        /*return -1;*/
+                /*}*/
                 /*printf("count:=%d\n", *count);*/
                 return; // also assumes all patterns same size
         }
@@ -362,11 +473,14 @@ void checkpatterns(perm_t perm, perm_t inverse, perm_t currentpatterncomplement,
                 /*printf("recurse\n");*/
 
                 // Recurse to make sequence longer until we eventually either do or don't get a pattern:
-                checkpatterns(perm, inverse, newpattern, currentpatternlength + 1, i, numlettersleft - 1, seenpos | (1 << oldpos), prefixmap, count);
+                val = checkpatterns(perm, inverse, newpattern, currentpatternlength + 1, i, numlettersleft - 1, seenpos | (1 << oldpos), prefixmap, count);
+                /*if (val == -1) {*/
+                        /*return -1;*/
+                /*}*/
         }
         
         /*printf("exhausted\n");*/
-        return;
+        return 0;
 }
 
 
@@ -2248,6 +2362,8 @@ int main(int argc, char *argv[])
                 /*int threadcount = atoi(argv[4]);*/
 
                 /*count_threaded(pattern, n, threadcount);*/
+        } else if (!strcmp(argv[1], "--etc")) {
+                etc();
         } else {
                 printf("I don't understand.\n\nUSAGE:\n");
                 printf("%s --tally-with-classes-multithread <pattern> <n> <nthreads>\n", argv[0]);

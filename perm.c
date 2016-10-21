@@ -12,8 +12,6 @@
 
         /*PERM_WRITE_BLOCK(PERM_CLEAR_BLOCK(perm, index), index, value);*/
 
-
-
 /**
  * perm_get_block() 
  * ````````````````
@@ -272,13 +270,18 @@ char *perm_get_string_literal(perm_t perm, int length)
 
 void perm_print_bits(perm_t p)
 {
-        while (p) {
+        int i=1;
+        int j=64;
+        while (j-->0) {
                 if (p & 1) {
                         printf("1");
                 } else {
                         printf("0");
                 }
                 p >>= 1;
+                if (!(i++ % 4)) {
+                        printf("|");
+                }
         }
         printf("\n");
 }
