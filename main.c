@@ -329,6 +329,30 @@ perm_t perm_prefix(perm_t perm, int prefix_length)
         return prefix;
 }
 
+perm_t perm_suffix(perm_t perm, int suffix_length)
+{
+        perm_t suffix = 0;
+
+        int perm_len = perm_length(perm);
+
+        for (int i=0; i<suffix_length; i++) {
+                suffix = perm_set_block(suffix, i, perm_get_block(perm, (perm_len-suffix_length)+i));
+        }
+
+        return suffix;
+}
+
+perm_t perm_reverse(perm_t perm, int perm_length)
+{
+        perm_t rev = 0;
+
+        for (int i=0; i<perm_length; i++) {
+                rev = perm_set_block(rev, i, perm_get_block(perm, perm_length-i));
+        }
+
+        return rev;
+}
+
 
 /*
  * Used on the pattern.
@@ -348,13 +372,14 @@ void build_complement_prefixes(struct ptable_t *table, perm_t perm)
         perm_print(inverse);
         printf("\n");
         perm_print(compl);
+        printf("\n");
 
         /*printf("complement is: %s\n", perm_get_string(compl));*/
 
         uint64_t helperbitmap = 0; // bit map of which letters we've seen so far
 
         for (i=0; i<length; i++) {
-                prefix = perm_reduce(perm_prefix(compl, length-i), length-i);
+                prefix = perm_reduce(perm_suffix(compl, length-i), length-i);
                 /*__extendnormalizetop(perm, inverse, length, i, &prefix, &helperbitmap);*/
                 printf("extension is: %s\n",perm_get_string(prefix));
                 /*print_bits(helperbitmap);*/
@@ -382,9 +407,36 @@ void etc(void)
 
         ptable_init(&tab, 600000);
 
-        perm_t pattern = perm_from_csv("0,1,2,3");
+        perm_t pattern = perm_from_csv("3,2,1,0");
+        /*perm_t pattern = perm_from_csv("1,0,2,3");*/
 
         build_complement_prefixes(&tab, pattern);
+
+        /*perm_t perm = perm_from_csv("1,0,2,3,5,4,6");*/
+        perm_t perm = perm_from_csv("3,2,1,0");
+        /*perm_t perm = perm_from_csv("0,1,2,3");*/
+
+        int perm_len = perm_length(perm);
+        int pattern_len = perm_length(pattern);
+
+        perm_t inverse = perm_inverse(perm, perm_len);
+
+
+        int count;
+
+        checkpatterns(
+                perm,
+                inverse,
+                (perm_t)0,
+                0,
+                perm_len,         
+                pattern_len,      
+                (uint64_t)0,
+                &tab,
+                &count
+        );
+
+        printf("%d\n", count);
 }
 
 
@@ -432,6 +484,7 @@ int checkpatterns(perm_t perm, perm_t inverse, perm_t currentpatterncomplement, 
 
         if (currentpatterncomplement != 0 && !ptable_contains(prefixmap, currentpatterncomplement)) {
                 /*[> Early exit <]*/
+                /*printf("compl:%s\n", perm_get_string(currentpatterncomplement));*/
                 /*printf("done 1\n");*/
                 /*printf("exit ... period\n");*/
                 return;
@@ -456,11 +509,16 @@ int checkpatterns(perm_t perm, perm_t inverse, perm_t currentpatterncomplement, 
                 // Similarly to as in extendnormalizetop (defined in perm.cpp), 
                 // we will build the complement of the normalization of the new 
                 // permutation-subsequence (with the new letter added to it)
+                /*printf("value i:%d\n", i);*/
                 int oldpos = perm_get_block(inverse, i);
                 int newpos = 0;
                 if (oldpos != 0) {
                         uint64_t temp = seenpos << (64 - oldpos); //Note: shifting by 32 is ill-defined, which is why we explicitly eliminate digit = 0 case.
+                        /*printf("oldp:%d\n", oldpos);*/
+                        /*print_bits(oldpos);*/
+                        /*printf("seen:");*/
                         /*print_bits(seenpos);*/
+                        /*printf("temp:");*/
                         /*print_bits(temp);*/
                         newpos = __builtin_popcountll(temp);
                         /*printf("newpos:%d\n", newpos);*/
@@ -469,6 +527,8 @@ int checkpatterns(perm_t perm, perm_t inverse, perm_t currentpatterncomplement, 
                 /*perm_t newpattern = setdigit(addpos(currentpatterncomplement, newpos), newpos, currentpatternlength);*/
 
                 perm_t newpattern = perm_insert_block(currentpatterncomplement, newpos, currentpatternlength);
+                /*perm_print(newpattern);*/
+                /*printf("\n");*/
 
                 /*printf("recurse\n");*/
 
