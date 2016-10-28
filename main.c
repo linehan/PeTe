@@ -422,7 +422,7 @@ void etc(void)
         perm_t inverse = perm_inverse(perm, perm_len);
 
 
-        int count;
+        uint64_t count;
 
         checkpatterns(
                 perm,
@@ -468,7 +468,7 @@ void prefix_test(void)
 
 
 /*checkpatterns(perm, inverse, 0, 0, currentsize, maxpatternsize, 0, prefixmap, count);*/
-int checkpatterns(perm_t perm, perm_t inverse, perm_t currentpatterncomplement, int currentpatternlength, int largestletterused, int numlettersleft, uint64_t seenpos, struct ptable_t *prefixmap, int *count) 
+int checkpatterns(perm_t perm, perm_t inverse, perm_t currentpatterncomplement, int currentpatternlength, int largestletterused, int numlettersleft, uint64_t seenpos, struct ptable_t *prefixmap, uint64_t *count) 
 {
         /*printf("perm:");*/
         /*perm_print(perm); */
@@ -710,9 +710,9 @@ int countffast(perm_t perm, perm_t pattern, int perm_len, int pattern_len)
 }
 
 
-int countfast_enhanced(perm_t perm, perm_t inverse, perm_t pattern, struct ptable_t *pattern_prefixes, int perm_len, int pattern_len)
+uint64_t countfast_enhanced(perm_t perm, perm_t inverse, perm_t pattern, struct ptable_t *pattern_prefixes, int perm_len, int pattern_len)
 {
-        int count = 0;
+        uint64_t count = 0;
 
         checkpatterns(
                 perm,
@@ -1568,11 +1568,11 @@ void run_p(struct pargs_t *P)
 
 void run_p_enhanced(struct pargs_t *P)
 {
-        int n;
-        int k;
-        int c;
-        int i;
-        int i0;
+        uint64_t n;
+        uint64_t k;
+        uint64_t c;
+        uint64_t i;
+        uint64_t i0;
         uint64_t *tptr;
         struct pset_t *cptr;
         int *iptr;
@@ -2085,8 +2085,8 @@ void tally_with_classes_enhanced(perm_t perm, perm_t pattern, int n_threads)
 
         struct pargs_t *args = calloc(1, (n_threads+2)*sizeof(struct pargs_t));
 
-        int i;
-        int j;
+        uint64_t i;
+        uint64_t j;
 
         /* Set up entries common to all threads */
         for (i=0; i<n_threads; i++) {
@@ -2117,7 +2117,7 @@ void tally_with_classes_enhanced(perm_t perm, perm_t pattern, int n_threads)
 
         pthread_t threads[64];
         pthread_t monitor;
-        int rc;
+        uint64_t rc;
 
         /*************************************************
          * Create a monitor thread arguments
@@ -2149,10 +2149,10 @@ void tally_with_classes_enhanced(perm_t perm, perm_t pattern, int n_threads)
         /*************************************************
          * Run through the permutation list once to init 
          *************************************************/
-        int index[100];
+        uint64_t index[100];
         uint64_t blocksize = (uint64_t)n_factorial / (uint64_t)n_threads;
         uint64_t count = 0;
-        int block = 0;
+        uint64_t block = 0;
 
         fprintf(stderr, "Making %d blocks of size %"PRIu64"/%"PRIu64"\n", n_threads, blocksize, n_factorial);
 
@@ -2198,7 +2198,7 @@ void tally_with_classes_enhanced(perm_t perm, perm_t pattern, int n_threads)
 
                                 if (block > n_threads) {
                                         fprintf(stderr, "too many blocks!\n");
-                                        exit(1);
+                                        /*exit(1);*/
                                 }
 
                                 count = 0;

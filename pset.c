@@ -4,9 +4,9 @@
 #include <assert.h>
 #include "pset.h"
 
-void pset_init(struct pset_t *set, int n)
+void pset_init(struct pset_t *set, uint64_t n)
 {
-        int i;
+        uint64_t i;
 
         assert(n <= 16);
 
@@ -22,8 +22,8 @@ void pset_init(struct pset_t *set, int n)
 
 void pset_add(struct pset_t *set, perm_t perm)
 {
-        int i;
-        int v;
+        uint64_t i;
+        uint64_t v;
 
         /* 
          * We are NOT checking length of perm, so warning. 
@@ -40,8 +40,8 @@ void pset_add(struct pset_t *set, perm_t perm)
 
 void pset_sum(struct pset_t *a, struct pset_t *b)
 {
-        int i;
-        int j;
+        uint64_t i;
+        uint64_t j;
 
         a->size += b->size;
 
@@ -55,8 +55,8 @@ void pset_sum(struct pset_t *a, struct pset_t *b)
 
 void pset_write(struct pset_t *set, FILE *file)
 {
-        int i;
-        int j;
+        uint64_t i;
+        uint64_t j;
 
         for (i=0; i<set->n; i++) {
                 for (j=0; j<set->n; j++) {
