@@ -723,7 +723,7 @@ int checkpatterns(perm_t perm, perm_t inverse, perm_t currentpatterncomplement, 
         /*printf("largest-used:%d, num-left:%d current-length:%d\n", largestletterused, numlettersleft, currentpatternlength);*/
         int val;
 
-        printf("currentpatterncomplement:%s\n", perm_get_string(currentpatterncomplement));
+        /*printf("currentpatterncomplement:%s\n", perm_get_string(currentpatterncomplement));*/
 
         if (currentpatterncomplement != 0 && !ptable_contains(prefixmap, currentpatterncomplement)) {
                 /*[> Early exit <]*/
