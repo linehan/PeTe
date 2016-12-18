@@ -1895,7 +1895,7 @@ void tally_with_classes_enhanced(perm_t perm, perm_t pattern, int n_threads)
         /* Write the master tally file */
         FILE *tallyfile = fopenf("w+", "%s/compute.tally", path, n, pstr);
         for (i=0; i<n_choose_k; i++) {
-                fprintf(tallyfile, "%d %d\n", i, tally[i]); 
+                fprintf(tallyfile, "%d %"PRIu64"\n", i, tally[i]); 
         }
 
         fprintf(stderr, "Writing permutons...\n");

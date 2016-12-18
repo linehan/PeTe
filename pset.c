@@ -53,6 +53,12 @@ void pset_sum(struct pset_t *a, struct pset_t *b)
         }
 }
 
+/*
+ * What orientation do you prefer?
+ *
+ * Standard for perms is 0,0 at top-left, and increasing position going down y-axis.
+ *
+ */
 void pset_write(struct pset_t *set, FILE *file)
 {
         uint64_t i;
