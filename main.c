@@ -16,9 +16,6 @@
 #include "ptable.h"
 #include "io.h"
 
-
-
-
 void runit(char *filename)
 {
 	FILE *file;
@@ -48,6 +45,86 @@ void runit(char *filename)
 
 }
 
+
+uint64_t count_up(perm_t perm, perm_t patt, struct ptable_t *table)
+{
+        int perm_len   = perm_length(perm);
+        int patt_len   = perm_length(patt);
+        perm_t inverse = perm_inverse(perm, perm_len);
+
+        uint64_t count = 0;
+
+        checkpatterns(
+                perm,
+                inverse,
+                (perm_t)0,
+                0,
+                perm_len,         
+                patt_len,      
+                (uint64_t)0,
+                table,
+                &count
+        );
+
+        return count;
+}
+
+
+void print_some(void)
+{
+        perm_t perm = 0;
+        perm_t patt = perm_from_csv("0,2,1");
+
+        int i;
+        int c = 0; 
+        int j = 0;
+
+        struct ptable_t table;
+        ptable_init(&table, 600000);
+
+        build_complement_prefixes(&table, patt);
+
+        for (i=0; i<16; i++) {
+                /*if (c > i+1) {*/
+                        /*return; */
+                /*}*/
+
+                perm = perm_insert_block(perm, c, i);
+
+                uint64_t count = count_up(perm, patt, &table);
+
+                printf("(%d) ", count);
+                perm_print(perm);
+                printf("\n");
+
+                for (j=0; j<i; j++) {
+                        perm_t perm2 = perm_insert_block(perm, j, i+1);
+
+                        uint64_t count = count_up(perm2, patt, &table);
+
+                        printf("%d)   (%d) ", j, count);
+                        perm_print(perm2);
+                        printf("\n");
+                }
+
+                /*while (1) { */
+                scanf("%d", &c); 
+                printf("got: %d\n", c);
+                        /*if (c == EOF) {*/
+                                /*break;       */
+                        /*} */
+
+                        /*if (!isspace(c)) {*/
+                                /*ungetc(c, stdin);*/
+                                /*break;*/
+                        /*}*/
+                /*}*/
+
+        }
+
+	return;
+
+}
 
 
 
@@ -606,6 +683,8 @@ void build_complement_prefixes(struct ptable_t *table, perm_t perm)
 
 void etc(void)
 {
+        print_some();
+        return;
         /*perm_t pete= perm_from_csv("1,3,0,2");*/
         /*perm_t plen = perm_length(pete);*/
         /*perm_t pinv = perm_inverse(pete, plen);*/
