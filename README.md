@@ -1,4 +1,4 @@
-# pete
+# PeTe
 
 This is a permutation testing library written in C. The object is to
 provide an easy-to-use API and a scalable resource model that can allow
@@ -12,13 +12,13 @@ The ``pete`` package can be built as either
 - standalone binary program
 - static C library
 
-### Building as binary 
+### Building as binary
 
-When built as a binary, ``pete`` can be invoked like any other 
+When built as a binary, ``pete`` can be invoked like any other
 program.
 
 ```
-make 
+make
 ```
 
 ### Building as static library
