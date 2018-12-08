@@ -14,7 +14,7 @@ resource model that can allow experimental mathematicians to easily measure
 statistics on sets of permutations.
 
 ![Count and average step-permuton of permutations in S_13 with each fixed density of pattern 4,2,1,3](plot/3102-S13.gif)
-**Fig. 1** Count and average step-permuton of permutations in *S_13* with each fixed density of pattern *4,2,1,3*.
+**Fig. 1** Average step-permuton and distribution of permutations in *S_13* with each fixed density of pattern *4,2,1,3*.
 
 
 ## Setup
