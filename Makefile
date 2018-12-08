@@ -11,8 +11,8 @@ ASM_COMPILER=yasm
 #         \    
 CC_FLAGS=-O4 -s -fomit-frame-pointer -DUNIX #-ffast-math 
 LD_FLAGS=-lm -pthread
-#	  /    
-#      math   
+#	      /    	 |
+#      math   pthreads
 #
 # NOTE on -ffast-math
 #
@@ -43,7 +43,12 @@ LD_FLAGS=-lm -pthread
 # Configure files 
 #########################
 
-PROG_SOURCES=main.c perm.c hashtable.c pset.c io.c ptable.c
+PROG_SOURCES=src/main.c 	 \
+			 src/perm.c 	 \
+			 src/hashtable.c \
+			 src/pset.c 	 \
+			 src/io.c 	 	 \
+			 src/ptable.c
 
 PROG_OBJECTS=$(PROG_SOURCES:.c=.o)
 

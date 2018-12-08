@@ -16,34 +16,6 @@
 #include "ptable.h"
 #include "io.h"
 
-void runit(char *filename)
-{
-	FILE *file;
-	char buffer[4096] = {0};
-
-	file =fopen(filename, "r");
-	if (!file) {
-		return;
-	}
-
-	while (fgets(buffer, 4096, file) != NULL) {
-		int lineno = 0;
-		int value = 0;
-		sscanf(buffer, "%d %d\n", &lineno, &value);
-
-                if (value < 0) {
-                        uint64_t a = abs(INT_MIN - value);
-                        uint64_t b = INT_MAX;
-                        printf("%d %"PRIu64"\n", lineno, a+b);
-                } else {
-                        printf("%d %"PRIu64"\n", lineno, value);
-                }
-	}
-
-	fclose(file);
-	return;
-
-}
 
 
 uint64_t count_up(perm_t perm, perm_t patt, struct ptable_t *table)
@@ -126,27 +98,6 @@ void print_some(void)
 
 }
 
-
-
-/******************************************************************************
- * MATH FUNCTIONS 
- ******************************************************************************/
-uint64_t factorial(uint64_t num) 
-{
-        uint64_t answer = 1;
-  
-        while (num > 1) {
-                answer *= num;
-                num--;
-        }
-        
-        return answer;
-}
-
-int nchoosek(int n, int k)
-{
-        return (n==0 | k==0) ? 1 : (n*nchoosek(n-1,k-1))/k;
-}
 
 /* WARNING: this will print LSB on left! This is backwards! */
 void print_bits_reverse(uint64_t v)
@@ -681,114 +632,6 @@ void build_complement_prefixes(struct ptable_t *table, perm_t perm)
 
 
 
-void etc(void)
-{
-        print_some();
-        return;
-        /*perm_t pete= perm_from_csv("1,3,0,2");*/
-        /*perm_t plen = perm_length(pete);*/
-        /*perm_t pinv = perm_inverse(pete, plen);*/
-
-        /*[>perm_t ans       = 0;<]*/
-        /*[>uint64_t seenpos = 0;<]*/
-
-        /*my_ent(pete, pinv, plen, plen-2);*/
-
-        /*[>perm_print(pete);<]*/
-        /*[>printf("\n");<]*/
-        /*[>perm_print(pinv);<]*/
-        /*[>printf("\n");<]*/
-        /*[>perm_print(ans);<]*/
-        /*[>printf("\n");<]*/
-        /*[>print_bits(seenpos);<]*/
-        /*[>printf("\n");<]*/
-
-        /*return;*/
-
-
-
-
-
-        /*perm_t perm = perm_from_csv("5,3,8,0");*/
-
-        /*perm_t reduce = perm_reduce(perm, 4);*/
-
-        /*perm_print(perm); */
-        /*printf("\n");*/
-        /*perm_print(reduce); */
-        /*printf("\n");*/
-
-        /*return;*/
-        struct ptable_t tab;
-
-        ptable_init(&tab, 600000);
-
-        /*perm_t pattern = perm_from_csv("3,2,1,0");*/
-        perm_t pattern = perm_from_csv("0,1");
-        /*perm_t pattern = perm_from_csv("1,0,3,2");*/
-        /*perm_t pattern = perm_from_csv("1,0,2,3");*/
-
-        build_complement_prefixes(&tab, pattern);
-
-        /*perm_t perm = perm_from_csv("1,0,2,3,5,4,6");*/
-        /*perm_t perm = perm_from_csv("3,2,1,0");*/
-        /*perm_t perm = perm_from_csv("1,0,3,2");*/
-        perm_t perm = perm_from_csv("0,1,2,3");
-        /*perm_t perm = perm_from_csv("0,1,2,3");*/
-
-        int perm_len = perm_length(perm);
-        int pattern_len = perm_length(pattern);
-
-        perm_t inverse = perm_inverse(perm, perm_len);
-
-
-        uint64_t count = 0;
-
-        checkpatterns(
-                perm,
-                inverse,
-                (perm_t)0,
-                0,
-                perm_len,         
-                pattern_len,      
-                (uint64_t)0,
-                &tab,
-                &count
-        );
-
-        printf("%"PRIu64"\n", count);
-}
-
-
-void prefix_test(void)
-{
-        struct ptable_t tab;
-
-        ptable_init(&tab, 600000);
-
-        perm_t pattern = perm_from_csv("3,0,1,2");
-
-        build_complement_prefixes(&tab, pattern);
-
-        if (ptable_contains(&tab, perm_from_csv("0,3,1,2"))) {
-                printf("got 0,3,1,2\n");
-        }
-        if (ptable_contains(&tab, perm_from_csv("3,2,1"))) {
-                printf("got 3,2,1\n");
-        }
-        if (ptable_contains(&tab, perm_from_csv("3,2"))) {
-                printf("got 3,2\n");
-        }
-        if (ptable_contains(&tab, perm_from_csv("3"))) {
-                printf("got 3\n");
-        }
-
-        printf("table size is: %d\n", tab.size);
-}
-
-
-
-
 /*checkpatterns(perm, inverse, 0, 0, currentsize, maxpatternsize, 0, prefixmap, count);*/
 int checkpatterns(perm_t perm, perm_t inverse, perm_t currentpatterncomplement, int currentpatternlength, int largestletterused, int numlettersleft, uint64_t seenpos, struct ptable_t *prefixmap, uint64_t *count) 
 {
@@ -1154,22 +997,6 @@ struct pargs_t {
 };
 
 
-/*
- * Used for the logging thread to track progress
- * of individual threads. 
- */
-struct monitor_data_t { 
-        uint64_t count;
-        uint64_t total;
-};
-
-struct monitor_data_t MONITOR[64]; 
-
-
-struct monitor_args_t {
-        FILE *log;
-        int   n_threads;
-};
 
 
 void run_p(struct pargs_t *P)
@@ -1498,431 +1325,117 @@ inline void print_to_blocklist(FILE *blocklist, int block, int *index, perm_t pe
 }
 
 
-void tally_with_classes(perm_t perm, perm_t pattern, int n_threads)
+
+
+struct worker_t {
+        uint64_t                id;
+        const struct run_t     *run;
+
+        struct {
+                perm_t          initial;
+                perm_t          current; 
+                uint64_t        num_processed;
+        } batch;
+
+        struct {
+                uint64_t         num_classes;
+                uint64_t         num_members[]; /* # members in each class */
+                struct matrix_t *average[];     /* average mx for each class */
+        } output;
+};
+
+
+
+int init_worker(void *user_worker_struct, uint64_t id, struct run_t *run)
 {
-        if (n_threads > 64) {
-                printf("too many threads!\n");
-                exit(1);
-        }
+        struct worker_t *worker = (struct worker_t *worker)user_worker_struct;
 
-        printf("preparing to thread...\n");
-
-        uint64_t n = perm_length(perm);
-        uint64_t k = perm_length(pattern);
-        uint64_t n_factorial = factorial(n);
-        uint64_t n_choose_k  = nchoosek(n, k);
-        /*
-         * There are (n_choose_k + 1) possible classes, corresponding to
-         * the potential counts for occurrences of a length-k pattern in a
-         * length-n permutation. These range from 0 occurrences all the way
-         * up to n_choose_k occurrences.
-         */
-        uint64_t number_of_classes = (n_choose_k + 1);
-
-        /*****************************
-         * Make the project directory 
-         *****************************/
-
-        char path[4096];
-
-        /* Collect current datetime as a string */
-        char datestring[16];
-        time_t now;
-        struct tm *today;
-
-        time(&now);
-        today = localtime(&now);
-
-        strftime(datestring, 15, "%Y%m%d", today);
-
-        /* Make the pattern into a digit string */
-        char *pstr = perm_get_string(pattern);
-
-        /* Print the project path */
-        sprintf(path, "%d-%s-%s", (int)n, pstr, datestring);
-
-        free(pstr);
-
-        mkdir(path, DIR_PERMS); 
-
-        struct pargs_t *args = calloc(1, (n_threads+2)*sizeof(struct pargs_t));
-
-        int i;
-        int j;
-
-        /* Set up entries common to all threads */
-        for (i=0; i<n_threads; i++) {
-                args[i].pattern   = pattern;
-                args[i].thread_id = i;
-                args[i].n = n;
-                args[i].k = k;
-                args[i].n_choose_k = n_choose_k;
-                args[i].n_factorial = n_factorial;
-                args[i].tally = calloc(1, number_of_classes*sizeof(uint64_t));
-                args[i].class = calloc(1, number_of_classes*sizeof(struct pset_t));
-
-                /* 
-                 * Initialize each of the pset objects. These are more like
-                 * permutons...  
-                 */
-                for (j=0; j<number_of_classes; j++) {
-                        pset_init(&(args[i].class[j]), n);
-                }
-        }
-
-
-        pthread_t threads[64];
-        pthread_t monitor;
-        int rc;
-
-        /*************************************************
-         * Create a monitor thread arguments
-         *************************************************/
-        struct monitor_args_t monitor_args; 
-
-        monitor_args.n_threads = n_threads;
-        monitor_args.log = fopenf("w+", "%s/monitor.log", path);
-
-        for (i=0; i<n_threads; i++) {
-                MONITOR[i].count = 0;
-                MONITOR[i].total = args[i].blocksize;
-        }
-
-        if (monitor_args.log) {
-                fprintf(stderr, "Monitor log is open\n");
-        } else {
-                fprintf(stderr, "Something wrong with monitor log\n");
-        }
-
-        /* Create the monitor thread */
-        pthread_create(&monitor, NULL, monitor_threads, (void *)&monitor_args);
-
-        
-        FILE *blocklist = fopenf("w+", "%s/blocklist.log", path);
-
-
-
-        /*************************************************
-         * Run through the permutation list once to init 
-         *************************************************/
-        int index[100];
-        uint64_t blocksize = (uint64_t)n_factorial / (uint64_t)n_threads;
-        uint64_t count = 0;
-        int block = 0;
-
-        fprintf(stderr, "Making %d blocks of size %"PRIu64"/%"PRIu64"\n", n_threads, blocksize, n_factorial);
-
-        for (i=1; i<=n; i++) {
-                perm_set_block(perm, i-1, i-1);
-                index[i] = 1;
-        }
-
-        args[0].start = perm;
-        args[0].i0 = 1;
-        args[0].blocksize = blocksize;
-        for (j=0; j<16; j++) {
-                args[0].index[j] = index[j];
-        }
-
-        print_to_blocklist(blocklist, 0, index, args[0].start, i);
-
-        for (i=1; i<=n;) {
-                if (index[i] < i) {
-                        if (i % 2) {
-                                perm = perm_swap(perm, 0, i-1);
-                        } else {
-                                perm = perm_swap(perm, index[i]-1, i-1);
-                        }
-                        index[i]++;
-                        i = 1;
-
-                        if (count++ == blocksize) {
-                                block += 1;
-                                args[block].blocksize = blocksize;
-                                args[block-1].stop = perm;
-                                args[block].start = perm;
-                                args[block].i0 = i;
-                                for (j=0; j<16; j++) {
-                                        args[block].index[j] = index[j];
-                                }
-
-                                print_to_blocklist(blocklist, block, index, perm, i);
-
-                                fprintf(stderr, "Block %d/%d complete after %"PRIu64"\n", block, n_threads, count-1);
-
-                                pthread_create(&threads[block-1], NULL, run_tally_with_classes, (void *)&args[block-1]);
-
-                                if (block > n_threads) {
-                                        fprintf(stderr, "too many blocks!\n");
-                                        exit(1);
-                                }
-
-                                count = 0;
-                        }
-                } else {
-                        index[i++] = 1;
-                }
-        }
-
-        fprintf(stderr, "Block %d/%d complete after %"PRIu64"\n", block, n_threads, count-1);
-        args[block].stop = UINT64_MAX;
-        pthread_create(&threads[block], NULL, run_tally_with_classes, (void *)&args[block]);
-
-        fprintf(stderr, "All blocks complete\n");
-
-
-
-        /*fprintf(monitor_args.log, "Monitor thread log test\n");*/
-
-
-        /*************************************************
-         * Run each of the args in its own thread 
-         *************************************************/
-       
-        /*for (i=0; i<n_threads; i++) { */
-                /*rc = pthread_create(&threads[i], NULL, run_tally_with_classes, (void *)&args[i]);*/
-        /*}*/
-
-
-        /* Wait for compute threads to finish */
-        for (i=0; i<n_threads; i++) {
-                rc = pthread_join(threads[i], NULL);
-                fprintf(stderr, "Compute thread [%d] complete\n", i);
-        }
-
-        /* Signal monitor that threads are done */
-        COMPUTE_THREADS_DONE = 1;
-
-        /* Wait for monitor to finish */
-        rc = pthread_join(monitor, NULL);
-
-        fprintf(stderr, "Monitor thread complete\n");
-
-        /* Combine all the tallies and class counts into a single one */
-        uint64_t *tally = calloc(1, n_choose_k * sizeof(uint64_t));
-        struct pset_t *class = calloc(1, n_choose_k *sizeof(struct pset_t));;
-
-        for (i=0; i<n_choose_k; i++) {
-                pset_init(&(class[i]), n);
-        }
-
-        fprintf(stderr, "Computing occurrence class sizes...\n");
-        fprintf(stderr, "Computing permutons...\n");
-
-        for (i=0; i<n_threads; i++) {
-                for (j=0; j<n_choose_k; j++) {
-                        tally[j] += args[i].tally[j];
-                        pset_sum(&class[j], &(args[i].class[j]));
-                }
-        }
-
-        /***************** 
-         * write it all
-         *****************/
-        fprintf(stderr, "Writing tally...\n");
-
-        /* Write the master tally file */
-        FILE *tallyfile = fopenf("w+", "%s/compute.tally", path, n, pstr);
-        for (i=0; i<n_choose_k; i++) {
-                fprintf(tallyfile, "%d %d\n", i, tally[i]); 
-        }
-
-        fprintf(stderr, "Writing permutons...\n");
-
-        /* Write the permuton files for each of the classes */
-        for (i=0; i<n_choose_k; i++) {
-                if (class[i].size != 0) {
-                        FILE *f = fopenf("w+", "%s/class.%d.permuton", path, i);
-                        pset_write(&(class[i]), f);
-                }
-        }
-
-        fprintf(stderr, "All results in ./%s\n", path);
-        fprintf(stderr, "RUN COMPLETE\n");
-
+        worker->id  = id;
+        worker->run = run;
 }
 
-void tally_with_classes_enhanced(perm_t perm, perm_t pattern, int n_threads)
+void ith_permutation(const int n, int i)
 {
-        if (n_threads > 64) {
-                printf("too many threads!\n");
-                exit(1);
+        int j = 0;
+        int k = 0;
+        int *fact = (int *)calloc(n, sizeof(int));
+        int *perm = (int *)calloc(n, sizeof(int));
+
+        /* Compute factorial numbers */
+        fact[k] = 1;
+        while (++k < n) {
+                fact[k] = fact[k-1] * k;
         }
 
-        printf("preparing to thread...\n");
+        /* Compute factorial (Lehman) code */
+        for (k=0; k<n; ++k) {
+                perm[k] = i / fact[n-1-k];
+                i = i % fact[n-1-k]; 
+        }
 
-        uint64_t n = perm_length(perm);
-        uint64_t k = perm_length(pattern);
-        uint64_t n_factorial = factorial(n);
-        uint64_t n_choose_k  = nchoosek(n, k);
-        /*
-         * There are (n_choose_k + 1) possible classes, corresponding to
-         * the potential counts for occurrences of a length-k pattern in a
-         * length-n permutation. These range from 0 occurrences all the way
-         * up to n_choose_k occurrences.
-         */
-        uint64_t number_of_classes = (n_choose_k + 1);
+        /* Readjust values to obtain the permutation */
+        /* Start from the end and check if preceding values are lower */
+        for (k=(n-1); k>0; --k) {
+                for (j=(k-1); j>=0; --j) {
+                        if (perm[j] <= perm[k]) {
+                                perm[k]++;
+                        }
+                }
+        }
 
-        /*****************************
-         * Make the project directory 
-         *****************************/
+        /* Print the permutation */
+        for (k=0; k<n; ++k) {
+                printf("%d ", perm[k]);
+        }
+        printf("\n");
 
-        char path[4096];
+        free(fact);
+        free(perm);
+}
 
-        /* Collect current datetime as a string */
-        char datestring[16];
-        time_t now;
-        struct tm *today;
 
-        time(&now);
-        today = localtime(&now);
-
-        strftime(datestring, 15, "%Y%m%d", today);
-
-        /* Make the pattern into a digit string */
-        char *pstr = perm_get_string(pattern);
-
-        /* Print the project path */
-        sprintf(path, "%d-%s-%s", (int)n, pstr, datestring);
-
-        free(pstr);
-
-        mkdir(path, DIR_PERMS); 
-
-        struct pargs_t *args = calloc(1, (n_threads+2)*sizeof(struct pargs_t));
+/**
+ *  @cls        : A fully initialized classifier
+ *  @max_workers: The number of workers to be spawned
+ */
+void run_threaded(struct classifier_t *cls, int max_workers, int num_batches)
+{
+        struct run_environment_t *env = setup_run_environment(
+                "density-test", 
+                max_workers, 
+                cls,
+        );
 
         uint64_t i;
         uint64_t j;
 
-        /* Set up entries common to all threads */
-        for (i=0; i<n_threads; i++) {
-                args[i].pattern   = pattern;
-                args[i].thread_id = i;
-                args[i].n = n;
-                args[i].k = k;
-                args[i].n_choose_k = n_choose_k;
-                args[i].n_factorial = n_factorial;
-                args[i].tally = calloc(1, number_of_classes*sizeof(uint64_t));
-                args[i].class = calloc(1, number_of_classes*sizeof(struct pset_t));
+        /* Initialize workers */
 
-                /* Build a pattern prefix hash table */
-                args[i].pattern_prefixes = calloc(1, sizeof(struct ptable_t));
-                ptable_init(args[i].pattern_prefixes, 600000);
-                build_complement_prefixes(args[i].pattern_prefixes, pattern);
+        struct worker_t *worker = calloc(1,max_workers*sizeof(struct worker_t));
 
-
-                /* 
-                 * Initialize each of the pset objects. These are more like
-                 * permutons...  
-                 */
-                for (j=0; j<number_of_classes; j++) {
-                        pset_init(&(args[i].class[j]), n);
-                }
+        for (i=0; i<max_workers; i++) {
+                worker[i].id  = i;
+                worker[i].run = run;
         }
-
-
-        pthread_t threads[64];
-        pthread_t monitor;
-        uint64_t rc;
 
         /*************************************************
          * Create a monitor thread arguments
          *************************************************/
-        struct monitor_args_t monitor_args; 
-
-        monitor_args.n_threads = n_threads;
-        monitor_args.log = fopenf("w+", "%s/monitor.log", path);
-
-        for (i=0; i<n_threads; i++) {
-                MONITOR[i].count = 0;
-                MONITOR[i].total = args[i].blocksize;
-        }
-
-        if (monitor_args.log) {
-                fprintf(stderr, "Monitor log is open\n");
-        } else {
-                fprintf(stderr, "Something wrong with monitor log\n");
-        }
-
-        /* Create the monitor thread */
-        pthread_create(&monitor, NULL, monitor_threads, (void *)&monitor_args);
-
-        
-        FILE *blocklist = fopenf("w+", "%s/blocklist.log", path);
-
+        pthread_t threads[64];
+        pthread_t monitor;
 
 
         /*************************************************
          * Run through the permutation list once to init 
          *************************************************/
-        uint64_t index[100];
         uint64_t blocksize = (uint64_t)n_factorial / (uint64_t)n_threads;
-        uint64_t count = 0;
-        uint64_t block = 0;
 
-        fprintf(stderr, "Making %d blocks of size %"PRIu64"/%"PRIu64"\n", n_threads, blocksize, n_factorial);
+        pthread_create(&threads[block-1], NULL, run_tally_with_classes_enhanced, (void *)&args[block-1]);
 
-        for (i=1; i<=n; i++) {
-                perm_set_block(perm, i-1, i-1);
-                index[i] = 1;
-        }
-
-        args[0].start = perm;
-        args[0].i0 = 1;
-        args[0].blocksize = blocksize;
-        for (j=0; j<16; j++) {
-                args[0].index[j] = index[j];
-        }
-
-        print_to_blocklist(blocklist, 0, index, args[0].start, i);
-
-        for (i=1; i<=n;) {
-                if (index[i] < i) {
-                        if (i % 2) {
-                                perm = perm_swap(perm, 0, i-1);
-                        } else {
-                                perm = perm_swap(perm, index[i]-1, i-1);
-                        }
-                        index[i]++;
-                        i = 1;
-
-                        if (count++ == blocksize) {
-                                block += 1;
-                                args[block].blocksize = blocksize;
-                                args[block-1].stop = perm;
-                                args[block].start = perm;
-                                args[block].i0 = i;
-                                for (j=0; j<16; j++) {
-                                        args[block].index[j] = index[j];
-                                }
-
-                                print_to_blocklist(blocklist, block, index, perm, i);
-
-                                fprintf(stderr, "Block %d/%d complete after %"PRIu64"\n", block, n_threads, count-1);
-
-                                pthread_create(&threads[block-1], NULL, run_tally_with_classes_enhanced, (void *)&args[block-1]);
-
-                                if (block > n_threads) {
-                                        fprintf(stderr, "too many blocks!\n");
-                                        /*exit(1);*/
-                                }
-
-                                count = 0;
-                        }
-                } else {
-                        index[i++] = 1;
-                }
-        }
-
-        fprintf(stderr, "Block %d/%d complete after %"PRIu64"\n", block, n_threads, count-1);
+        /* SPECIAL last block: make the last block mop up the rest */
         args[block].stop = UINT64_MAX;
         pthread_create(&threads[block], NULL, run_tally_with_classes_enhanced, (void *)&args[block]);
 
-        fprintf(stderr, "All blocks complete\n");
-
-
-
-        /*fprintf(monitor_args.log, "Monitor thread log test\n");*/
 
 
         /*************************************************
@@ -1993,157 +1506,24 @@ void tally_with_classes_enhanced(perm_t perm, perm_t pattern, int n_threads)
 }
 
 
-
-inline uint64_t rdtsc() 
-{
-        uint32_t lo;
-        uint32_t hi;
-
-        __asm__ __volatile__ (
-                /* Flush the CPU instruction pipeline first */
-                "xorl %%eax, %%eax\n"
-                "cpuid\n"
-                /* Get RDTSC counter in ebx:ecx */
-                "rdtsc\n"
-                : "=a" (lo), "=d" (hi)
-                :
-                : "%ebx", "%ecx"
-        );
-        return (uint64_t)hi << 32 | lo;
-}
-
 int main(int argc, char *argv[]) 
 {
         if (argc == 1) {
                 printf("USAGE:\n");
                 printf("%s --tally-with-classes-multithread <pattern> <n> <nthreads>\n", argv[0]);
-                /*printf("%s --benchmark\n", argv[0]);*/
-                /*printf("%s --tally                          <pattern> <n> <tally file>\n", argv[0]);*/
-                /*printf("%s --tally-multithread-config-write <perm_len> <num_blocks>\n", argv[0]);*/
-                /*printf("%s --tally-multithread-config-read  <pattern> <config_path> \n", argv[0]);*/
-                /*printf("%s --tally-from-start-state         <start> <stop> <idx> <i> <pattern> \n", argv[0]);*/
-
-        /*} else if (!strcmp(argv[1], "--pset")) {*/
-
-                /*struct pset_t set; */
-
-                /*perm_t a = perm_from_csv("12,6,4,0,3,2,5,7,8,11,1,10,9");*/
-                /*perm_t b = perm_from_csv("12,6,4,8,3,2,5,7,0,11,1,10,9");*/
-                /*perm_t c = perm_from_csv("1,6,4,8,3,2,5,7,0,11,12,10,9");*/
-
-                /*pset_init(&set, 13);*/
-
-                /*pset_add(&set, a);*/
-                /*pset_add(&set, b);*/
-                /*pset_add(&set, c);*/
-
-                /*FILE *f = fopen("pset.test", "w+");*/
-
-                /*pset_write(&set, f);*/
-
-        /*} else if (!strcmp(argv[1], "--benchmark")) {*/
-
-                /*perm_t perm = perm_from_csv("12,6,4,0,3,2,5,7,8,11,1,10,9");*/
-                /*perm_t patt = perm_from_csv("3,1,0,2");*/
-
-                /*uint64_t t0;*/
-                /*uint64_t t1;*/
-                /*int   count;*/
-               
-                /*t0    = rdtsc(); */
-                /*count = countfast(perm, patt, 13, 4); */
-                /*t1    = rdtsc(); */
-
-                /*printf("countfast() computed for n=13 k=4 in %"PRIu64" cycles\n", t1-t0);*/
-                /*[>printf("pfast() called %d times\n", BM_pfast_call_count);<]*/
-
-
-                /*t0    = rdtsc(); */
-                /*count = countffast(perm, patt, 13, 4); */
-                /*t1    = rdtsc(); */
-
-                /*printf("countffast() computed for n=13 k=4 in %"PRIu64" cycles\n", t1-t0);*/
-                /*[>printf("cache missed %d times\n", BM_pffast_cache_misses);<]*/
-
-        } else if (!strcmp(argv[1], "--test")) {
-
-                etc();
-                /*prefix_test();*/
-                /*counting_test();*/
-        } else if (!strcmp(argv[1], "--try-convert")) {
-
-		runit(argv[2]);
-
-                /*uint64_t a = abs(INT_MIN - atoi(argv[2]));*/
-                /*uint64_t b = INT_MAX;*/
-
-                /*[>printf("%d\n", INT_MAX + 1);<]*/
-
-                /*[>int n = atoi(argv[2]);<]*/
-                /*printf("%"PRIu64"\n", a+b);*/
-                /*[>prefix_test();<]*/
-                /*counting_test();*/
 
         } else if (!strcmp(argv[1], "--frequency")) {
 
                 char *pattern_string = argv[2];
                 int n                = atoi(argv[3]);
-                int threadcount      = atoi(argv[4]);
+                int max_workers      = atoi(argv[4]);
 
                 perm_t pattern = perm_from_csv(pattern_string);
-                perm_t perm    = perm_of_length(n);
 
-                tally_with_classes(perm, pattern, threadcount);
+                struct pd_classifier_t *pd = get_pd_classifier(n, pattern);
+                        
+                run_threaded(pd, max_workers);
 
-        } else if (!strcmp(argv[1], "--ffrequency")) {
-
-                char *pattern_string = argv[2];
-                int n                = atoi(argv[3]);
-                int threadcount      = atoi(argv[4]);
-
-                perm_t pattern = perm_from_csv(pattern_string);
-                perm_t perm    = perm_of_length(n);
-
-                tally_with_classes_enhanced(perm, pattern, threadcount);
-
-        /*} else if (!strcmp(argv[1], "--tally")) {*/
-                /*char *pattern_string = argv[1];*/
-                /*char *tally_file     = argv[3];*/
-                /*int n                = atoi(argv[2]);*/
-
-                /*Log = fopen(tally_file, "w+");*/
-
-                /*perm_t pattern = perm_from_string(pattern_string);*/
-                /*perm_t perm    = perm_of_length(n);*/
-
-                /*[>***********************<]*/
-                /*int nclasses = nchoosek(perm_length(perm), perm_length(pattern));*/
-
-                /*struct pset_t *classes = calloc(1, nclasses*sizeof(struct pset_t));*/
-
-                /*int i;*/
-                /*for (i=0; i<nclasses; i++) {*/
-                        /*pset_init(&classes[i], n);*/
-                /*}*/
-                /*[>***********************<]*/
-
-                /*Total = factorial((uint64_t)n);*/
-
-                /*generate_permutations_fast(perm, pattern);*/
-                /*[>permute(perm, pattern, 0, perm_length(perm)-1); <]*/
-
-                /*[>#ifdef GO_FAST<]*/
-                /*write_tally(Log);*/
-                /*[>#endif<]*/
-        /*} else if (!strcmp(argv[1], "--tally-multithread")) {*/
-
-                /*perm_t pattern = perm_from_csv(argv[2]);*/
-                /*int n = atoi(argv[3]); */
-                /*int threadcount = atoi(argv[4]);*/
-
-                /*count_threaded(pattern, n, threadcount);*/
-        } else if (!strcmp(argv[1], "--etc")) {
-                etc();
         } else {
                 printf("I don't understand.\n\nUSAGE:\n");
                 printf("%s --frequency <pattern> <n> <nthreads>\n", argv[0]);
