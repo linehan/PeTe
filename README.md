@@ -13,6 +13,10 @@ The goal of this project is to provide an easy-to-use API and a scalable
 resource model that can allow experimental mathematicians to easily measure
 statistics on sets of permutations.
 
+![Count and average step-permuton of permutations in S_13 with each fixed density of pattern 4,2,1,3](https://olm.ec/box/3102-S13.gif)
+Count and average step-permuton of permutations in *S_13* with each fixed density of pattern *4,2,1,3*.
+
+
 ## Setup
 
 The ``pete`` package can be built as either
